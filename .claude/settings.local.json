@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run dev:*)",
+      "Bash(node:*)",
+      "Bash(MONGODB_URI=\"mongodb+srv://huzaifafewb:huzaifafewb@healthcare.uh5yc.mongodb.net/?retryWrites=true&w=majority&appName=healthCare\" node src/scripts/fixPageFields.js)",
+      "Bash(MONGODB_URI=\"mongodb+srv://huzaifafewb:huzaifafewb@healthcare.uh5yc.mongodb.net/?retryWrites=true&w=majority&appName=healthCare\" node src/scripts/checkAndFixPages.js)"
+    ],
+    "deny": []
+  }
+}
