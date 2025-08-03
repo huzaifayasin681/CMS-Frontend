@@ -178,7 +178,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ postId }) => {
     comment, 
     isReply = false 
   }) => {
-    const userId = user?.id || user?._id;
+    const userId = user?.id;
     const commentAuthorId = comment.author.id || comment.author._id;
     const isLiked = user && userId && comment.likes.includes(userId);
     const canDelete = user && userId && (userId === commentAuthorId || user.role === 'admin' || user.role === 'superadmin');

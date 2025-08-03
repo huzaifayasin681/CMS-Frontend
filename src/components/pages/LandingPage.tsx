@@ -16,6 +16,7 @@ import {
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { AnimatedBackground } from '@/components/ui/AnimatedBackground';
 import { useAuthStore } from '@/lib/auth';
 
 export const LandingPage: React.FC = () => {
@@ -68,7 +69,8 @@ export const LandingPage: React.FC = () => {
       <Header />
       
       {/* Hero Section */}
-      <section className="relative overflow-hidden">
+      <section className="relative overflow-hidden min-h-[90vh] flex items-center">
+        <AnimatedBackground variant="waves" density="medium" className="opacity-30" />
         <div className="absolute inset-0 bg-gradient-to-br from-[var(--primary)] via-[var(--accent)] to-[var(--secondary)] opacity-5"></div>
         
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">

@@ -515,7 +515,7 @@ export default function BlogPostPage() {
         )}
 
         {/* Comments Section */}
-        <CommentSection postId={post.id || post._id || ''} />
+        <CommentSection postId={post.id || ''} />
       </article>
 
       {/* Related Posts */}

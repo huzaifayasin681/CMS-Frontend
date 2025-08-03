@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-type Theme = 'light' | 'dark' | 'colorful';
+type Theme = 'light' | 'dark' | 'colorful' | 'cosmic' | 'ocean';
 
 interface ThemeState {
   theme: Theme;
@@ -41,6 +41,12 @@ export const useThemeStore = create<ThemeState>()(
             nextTheme = 'colorful';
             break;
           case 'colorful':
+            nextTheme = 'cosmic';
+            break;
+          case 'cosmic':
+            nextTheme = 'ocean';
+            break;
+          case 'ocean':
             nextTheme = 'light';
             break;
           default:
@@ -89,6 +95,28 @@ export const themeConfig = {
       background: '#fef7ff',
       surface: '#f3e8ff',
       text: '#581c87',
+    }
+  },
+  cosmic: {
+    name: 'Cosmic',
+    colors: {
+      primary: '#9333ea',
+      secondary: '#f59e0b',
+      accent: '#06b6d4',
+      background: '#0c0a1a',
+      surface: '#1a1625',
+      text: '#e2e8f0',
+    }
+  },
+  ocean: {
+    name: 'Ocean',
+    colors: {
+      primary: '#0ea5e9',
+      secondary: '#06b6d4',
+      accent: '#10b981',
+      background: '#f0f9ff',
+      surface: '#e0f2fe',
+      text: '#0c4a6e',
     }
   }
 };

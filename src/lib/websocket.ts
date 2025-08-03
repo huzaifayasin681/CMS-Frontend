@@ -31,7 +31,7 @@ class WebSocketClient {
   private isConnected = false;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
-  private eventListeners: Map<keyof WebSocketEvents, Function[]> = new Map();
+  private eventListeners: Map<keyof WebSocketEvents, ((...args: any[]) => void)[]> = new Map();
 
   constructor() {
     this.connect();

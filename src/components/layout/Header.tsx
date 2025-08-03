@@ -5,9 +5,6 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { 
   Menu, 
-  Sun, 
-  Moon, 
-  Palette, 
   User, 
   Settings, 
   LogOut,
@@ -15,8 +12,8 @@ import {
   Search
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth';
-import { useThemeStore } from '@/lib/theme';
 import { Button } from '@/components/ui/Button';
+import { ThemeSwitcher } from '@/components/ui/ThemeSwitcher';
 import { showToast } from '@/components/ui/Toast';
 import { PublicNav } from '@/components/layout/PublicNav';
 
@@ -30,8 +27,6 @@ export const Header: React.FC<HeaderProps> = ({
   showMenuButton = false 
 }) => {
   const { user, isAuthenticated, logout } = useAuthStore();
-  const { theme, toggleTheme } = useThemeStore();
-  
   const [showUserMenu, setShowUserMenu] = React.useState(false);
   
   const handleLogout = () => {
@@ -40,20 +35,6 @@ export const Header: React.FC<HeaderProps> = ({
     showToast.success('Logged out successfully');
   };
   
-  const getThemeIcon = () => {
-    switch (theme) {
-      case 'light':
-        return Sun;
-      case 'dark':
-        return Moon;
-      case 'colorful':
-        return Palette;
-      default:
-        return Sun;
-    }
-  };
-  
-  const ThemeIcon = getThemeIcon();
   
   return (
     <header className="glass-strong border-b border-[var(--glass-border)] sticky top-0 z-50">
@@ -109,11 +90,9 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Right side */}
           <div className="flex items-center gap-1 lg:gap-2 flex-shrink-0">
             {/* Theme toggle */}
-            <Button
-              variant="ghost"
-              size="sm"
-              icon={ThemeIcon}
-              onClick={toggleTheme}
+            <ThemeSwitcher 
+              variant="dropdown" 
+              size="sm" 
               className="text-[var(--secondary)] hover:text-[var(--primary)]"
             />
             

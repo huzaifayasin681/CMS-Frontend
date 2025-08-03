@@ -1,9 +1,10 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { LucideIcon } from 'lucide-react';
 
-interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+interface InputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onDrag' | 'onDragEnd' | 'onDragStart' | 'onAnimationStart' | 'onAnimationEnd' | 'onAnimationIteration'> {
   label?: string;
   icon?: LucideIcon;
   iconPosition?: 'left' | 'right';
@@ -25,19 +26,22 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(({
 }, ref) => {
   const inputId = id || `input-${Math.random().toString(36).substr(2, 9)}`;
   
+  const [isFocused, setIsFocused] = useState(false);
+  
   const baseClasses = `
-    px-3 py-2 
+    px-4 py-3
     bg-[var(--surface)] 
     border border-[var(--border)] 
-    rounded-lg 
+    rounded-xl
     text-[var(--foreground)] 
     placeholder-[var(--secondary)]
-    transition-all duration-200
-    focus:outline-none focus:ring-2 focus:ring-[var(--ring)] focus:border-transparent
-    hover:border-[var(--primary)]
+    transition-all duration-300
+    focus:outline-none focus:ring-2 focus:ring-[var(--ring)] focus:border-transparent focus:shadow-lg
+    hover:border-[var(--primary)] hover:shadow-md
     ${error ? 'border-[var(--danger)] focus:ring-red-500' : ''}
-    ${Icon ? (iconPosition === 'left' ? 'pl-10' : 'pr-10') : ''}
+    ${Icon ? (iconPosition === 'left' ? 'pl-11' : 'pr-11') : ''}
     ${fullWidth ? 'w-full' : ''}
+    ${isFocused ? 'shadow-glow' : ''}
   `;
   
   return (
@@ -55,10 +59,20 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(({
           </div>
         )}
         
-        <input
+        <motion.input
           ref={ref}
           id={inputId}
           className={`${baseClasses} ${className}`}
+          onFocus={(e) => {
+            setIsFocused(true);
+            props.onFocus?.(e);
+          }}
+          onBlur={(e) => {
+            setIsFocused(false);
+            props.onBlur?.(e);
+          }}
+          whileFocus={{ scale: 1.01 }}
+          transition={{ type: "spring", stiffness: 400, damping: 30 }}
           {...props}
         />
         
@@ -69,13 +83,34 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(({
         )}
       </div>
       
-      {error && (
-        <p className="mt-1.5 text-sm text-[var(--danger)]">{error}</p>
-      )}
-      
-      {hint && !error && (
-        <p className="mt-1.5 text-sm text-[var(--secondary)]">{hint}</p>
-      )}
+      <AnimatePresence mode="wait">
+        {error && (
+          <motion.p 
+            className="mt-2 text-sm text-[var(--danger)] flex items-center gap-1"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+          >
+            <span className="w-4 h-4 rounded-full bg-[var(--danger)] flex items-center justify-center">
+              <span className="text-white text-xs">!</span>
+            </span>
+            {error}
+          </motion.p>
+        )}
+        
+        {hint && !error && (
+          <motion.p 
+            className="mt-2 text-sm text-[var(--secondary)]"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+          >
+            {hint}
+          </motion.p>
+        )}
+      </AnimatePresence>
     </div>
   );
 });
