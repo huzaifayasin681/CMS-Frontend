@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Eye, EyeOff, LogIn, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, LogIn, ArrowLeft, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
@@ -18,8 +18,12 @@ export default function LoginPage() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showResendOption, setShowResendOption] = useState(false);
+  const [resendEmail, setResendEmail] = useState('');
+  const [isResending, setIsResending] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
   
-  const { login, isAuthenticated } = useAuthStore();
+  const { login, isAuthenticated, resendVerification } = useAuthStore();
   const router = useRouter();
   
   useEffect(() => {
@@ -27,6 +31,16 @@ export default function LoginPage() {
       router.replace('/dashboard');
     }
   }, [isAuthenticated, router]);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (resendCooldown > 0) {
+      interval = setInterval(() => {
+        setResendCooldown(prev => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [resendCooldown]);
   
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -45,9 +59,47 @@ export default function LoginPage() {
       router.push('/dashboard');
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || 'Login failed. Please try again.';
-      showToast.error(errorMessage);
+      const emailVerified = error.response?.data?.emailVerified;
+      
+      if (emailVerified === false) {
+        showToast.error('Please verify your email address before logging in.');
+        setShowResendOption(true);
+        setResendEmail(formData.login);
+      } else {
+        showToast.error(errorMessage);
+      }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (!resendEmail) {
+      showToast.error('Email address is required to resend verification.');
+      return;
+    }
+
+    setIsResending(true);
+    try {
+      await resendVerification(resendEmail);
+      showToast.success('Verification email sent! Please check your inbox and spam folder.');
+      setResendCooldown(120); // 2 minute cooldown to match backend rate limit
+      router.push(`/verify-email?email=${encodeURIComponent(resendEmail)}`);
+    } catch (error: any) {
+      const errorMessage = error.response?.data?.message || 'Failed to resend verification email.';
+      const retryAfter = error.response?.data?.retryAfter;
+      
+      if (error.response?.status === 429) {
+        showToast.error(`${errorMessage} Please try again in ${retryAfter || 120} seconds.`);
+        setResendCooldown(retryAfter || 120);
+      } else if (error.response?.status === 400 && errorMessage.includes('already verified')) {
+        showToast.success('Your email is already verified! Please try logging in again.');
+        setShowResendOption(false);
+      } else {
+        showToast.error(errorMessage);
+      }
+    } finally {
+      setIsResending(false);
     }
   };
   
@@ -148,6 +200,60 @@ export default function LoginPage() {
               Sign In
             </Button>
           </form>
+
+          {/* Email Verification Resend Section */}
+          {showResendOption && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-lg"
+            >
+              <div className="text-center space-y-3">
+                <div className="flex items-center justify-center gap-2 text-blue-600 dark:text-blue-400">
+                  <Mail size={20} />
+                  <h3 className="font-medium">Email Verification Required</h3>
+                </div>
+                
+                <p className="text-sm text-blue-600 dark:text-blue-400">
+                  Please verify your email address to continue. Check your inbox for the verification link.
+                </p>
+                
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Button
+                    onClick={handleResendVerification}
+                    loading={isResending}
+                    disabled={resendCooldown > 0}
+                    variant="outline"
+                    size="sm"
+                    icon={Mail}
+                    className="flex-1"
+                  >
+                    {resendCooldown > 0 
+                      ? `Resend in ${Math.floor(resendCooldown / 60)}:${String(resendCooldown % 60).padStart(2, '0')}` 
+                      : 'Resend Verification Email'
+                    }
+                  </Button>
+                  
+                  <Button
+                    onClick={() => router.push(`/verify-email?email=${encodeURIComponent(resendEmail)}`)}
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                  >
+                    Go to Verification Page
+                  </Button>
+                </div>
+                
+                <button
+                  onClick={() => setShowResendOption(false)}
+                  className="text-xs text-[var(--secondary)] hover:text-[var(--foreground)] transition-colors"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </motion.div>
+          )}
           
           <div className="mt-8 text-center">
             <p className="text-[var(--secondary)]">
@@ -172,9 +278,9 @@ export default function LoginPage() {
               Demo Credentials:
             </h3>
             <div className="text-xs text-[var(--secondary)] space-y-1">
-              <div><strong>Admin:</strong> admin@demo.com / admin123</div>
-              <div><strong>Editor:</strong> editor@demo.com / editor123</div>
-              <div><strong>Viewer:</strong> viewer@demo.com / viewer123</div>
+              <div><strong>Admin:</strong> admin@demo.com / Password123</div>
+              <div><strong>Editor:</strong> editor@demo.com / Password123</div>
+              <div><strong>Viewer:</strong> viewer@demo.com / Password123</div>
             </div>
           </motion.div>
         </Card>

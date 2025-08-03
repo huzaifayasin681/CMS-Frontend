@@ -3,35 +3,9 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Calendar, User, Eye } from 'lucide-react';
+import { PageTemplateProps } from '@/types/page';
 
-interface PageData {
-  id: string;
-  title: string;
-  slug: string;
-  content: string;
-  excerpt?: string;
-  featuredImage?: string;
-  author: {
-    id: string;
-    username: string;
-    firstName?: string;
-    lastName?: string;
-    avatar?: string;
-  };
-  publishedAt: string;
-  updatedAt: string;
-  views: number;
-  status: 'published' | 'draft';
-  template: string;
-  seoTitle?: string;
-  seoDescription?: string;
-}
-
-interface FullWidthTemplateProps {
-  page: PageData;
-}
-
-export const FullWidthTemplate: React.FC<FullWidthTemplateProps> = ({ page }) => {
+export const FullWidthTemplate: React.FC<PageTemplateProps> = ({ page }) => {
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',

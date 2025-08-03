@@ -18,7 +18,8 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { LoadingSpinner, LoadingSkeleton } from '@/components/ui/LoadingSpinner';
 import { useAuthStore, usePermissions } from '@/lib/auth';
-import { analyticsAPI } from '@/lib/api';
+import { analyticsAPI, activityAPI } from '@/lib/api';
+import PendingApprovalNotification from '@/components/dashboard/PendingApprovalNotification';
 import Link from 'next/link';
 
 interface DashboardStats {
@@ -71,40 +72,18 @@ export default function DashboardPage() {
     const fetchDashboardData = async () => {
       setIsLoading(true);
       try {
-        // Fetch real analytics data
-        const overviewRes = await analyticsAPI.getDashboardOverview({ period: '30' });
-        const data = overviewRes.data.data;
-        
-        setStats(data.overview);
-        setGrowth(data.growth);
-
-        // Mock recent activity for now - could be enhanced with real activity tracking
-        setRecentActivity([
-          {
-            id: '1',
-            type: 'post',
-            title: 'Getting Started with Content Hub',
-            action: 'Published',
-            timestamp: '2 hours ago',
-            user: user?.username || 'You'
-          },
-          {
-            id: '2',
-            type: 'media',
-            title: 'hero-image.jpg',
-            action: 'Uploaded',
-            timestamp: '4 hours ago',
-            user: user?.username || 'You'
-          },
-          {
-            id: '3',
-            type: 'page',
-            title: 'About Us',
-            action: 'Updated',
-            timestamp: '1 day ago',
-            user: user?.username || 'You'
-          }
+        // Fetch real analytics and activity data
+        const [overviewRes, activityRes] = await Promise.all([
+          analyticsAPI.getDashboardOverview({ period: '30' }),
+          activityAPI.getRecentActivities({ limit: 5 })
         ]);
+        
+        const overviewData = overviewRes.data.data;
+        const activityData = activityRes.data.data;
+        
+        setStats(overviewData.overview);
+        setGrowth(overviewData.growth);
+        setRecentActivity(activityData.activities || []);
 
       } catch (error) {
         console.error('Failed to fetch dashboard data:', error);
@@ -209,6 +188,9 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
+      {/* Pending Approval Notification */}
+      <PendingApprovalNotification />
+      
       {/* Welcome Section */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}

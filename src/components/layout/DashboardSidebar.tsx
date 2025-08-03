@@ -2,6 +2,7 @@
 
 import React, { JSX } from 'react';
 import Link from 'next/link';
+import { useAuthStore, usePermissions } from '@/lib/auth';
 
 interface DashboardSidebarProps {
   isOpen: boolean;
@@ -9,6 +10,8 @@ interface DashboardSidebarProps {
 }
 
 export default function DashboardSidebar({ isOpen, onClose }: DashboardSidebarProps): JSX.Element {
+  const { user } = useAuthStore();
+  const permissions = usePermissions();
   return (
     <>
       {/* Overlay for mobile when sidebar is open */}
@@ -48,6 +51,11 @@ export default function DashboardSidebar({ isOpen, onClose }: DashboardSidebarPr
             <Link href="/dashboard/analytics" className="block py-2 px-3 rounded hover:bg-gray-100 transition-colors">
               Analytics
             </Link>
+            {permissions.isSuperAdmin && (
+              <Link href="/dashboard/users" className="block py-2 px-3 rounded hover:bg-gray-100 transition-colors">
+                User Management
+              </Link>
+            )}
             <Link href="/dashboard/profile" className="block py-2 px-3 rounded hover:bg-gray-100 transition-colors">
               Profile
             </Link>

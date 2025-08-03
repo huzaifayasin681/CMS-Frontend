@@ -62,6 +62,11 @@
   box-sizing: border-box;
 }
 
+/* Define sidebar background for user management */
+:root {
+  --sidebar: var(--surface);
+}
+
 html {
   scroll-behavior: smooth;
 }

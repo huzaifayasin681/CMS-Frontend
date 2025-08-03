@@ -7,7 +7,7 @@ import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
 interface ProtectedRouteProps {
   children: ReactNode;
-  requiredRole?: 'admin' | 'editor' | 'viewer';
+  requiredRole?: 'superadmin' | 'admin' | 'editor' | 'viewer';
 }
 
 export const ProtectedRoute = ({ 
@@ -33,18 +33,29 @@ export const ProtectedRoute = ({
       return;
     }
 
+    // Check email verification
+    if (!isLoading && isAuthenticated && user && !user.emailVerified) {
+      router.push(`/verify-email?email=${encodeURIComponent(user.email)}`);
+      return;
+    }
+
     // Check role permissions
-    if (!isLoading && isAuthenticated && user) {
+    if (!isLoading && isAuthenticated && user && user.emailVerified) {
       const hasPermission = checkRolePermission(user.role, requiredRole);
       if (!hasPermission) {
-        router.push('/dashboard'); // Redirect to dashboard if no permission
+        // If user is trying to access dashboard but is viewer, redirect to home
+        if (requiredRole === 'editor' && user.role === 'viewer') {
+          router.push('/?error=dashboard_access_denied');
+        } else {
+          router.push('/dashboard'); // Redirect to dashboard if no permission
+        }
         return;
       }
     }
   }, [isLoading, isAuthenticated, user, requiredRole, router]);
 
   const checkRolePermission = (userRole: string, required: string): boolean => {
-    const roleHierarchy = { admin: 3, editor: 2, viewer: 1 };
+    const roleHierarchy = { superadmin: 4, admin: 3, editor: 2, viewer: 1 };
     const userLevel = roleHierarchy[userRole as keyof typeof roleHierarchy] || 0;
     const requiredLevel = roleHierarchy[required as keyof typeof roleHierarchy] || 0;
     return userLevel >= requiredLevel;
@@ -58,8 +69,8 @@ export const ProtectedRoute = ({
     );
   }
 
-  if (!isAuthenticated || !user) {
-    // return null;
+  if (!isAuthenticated || !user || !user.emailVerified) {
+    return <div></div>;
   }
 
   return <>{children}</>;

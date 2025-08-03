@@ -164,15 +164,32 @@ interface MediaAnalytics {
   period: number;
 }
 
+interface SearchAnalytics {
+  searchTerms: Array<{
+    term: string;
+    count: number;
+    trend: 'up' | 'down' | 'stable';
+  }>;
+  searchResults: Array<{
+    _id: string;
+    title: string;
+    slug: string;
+    views: number;
+    searchScore: number;
+  }>;
+  totalSearches: number;
+}
+
 export default function AnalyticsPage() {
   const [overview, setOverview] = useState<DashboardOverview | null>(null);
   const [content, setContent] = useState<ContentPerformance | null>(null);
   const [traffic, setTraffic] = useState<TrafficAnalytics | null>(null);
   const [users, setUsers] = useState<UserAnalytics | null>(null);
   const [media, setMedia] = useState<MediaAnalytics | null>(null);
+  const [search, setSearch] = useState<SearchAnalytics | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [timeRange, setTimeRange] = useState<'7' | '30' | '90'>('30');
-  const [activeTab, setActiveTab] = useState<'overview' | 'content' | 'traffic' | 'users' | 'media'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'content' | 'traffic' | 'users' | 'media' | 'search'>('overview');
 
   useEffect(() => {
     fetchAnalytics();
@@ -183,12 +200,13 @@ export default function AnalyticsPage() {
     try {
       const params = { period: timeRange };
       
-      const [overviewRes, contentRes, trafficRes, usersRes, mediaRes] = await Promise.all([
+      const [overviewRes, contentRes, trafficRes, usersRes, mediaRes, searchRes] = await Promise.all([
         analyticsAPI.getDashboardOverview(params),
         analyticsAPI.getContentPerformance(params),
         analyticsAPI.getTrafficAnalytics(params),
         analyticsAPI.getUserAnalytics(params).catch(() => null), // Users might require admin role
-        analyticsAPI.getMediaAnalytics(params)
+        analyticsAPI.getMediaAnalytics(params),
+        analyticsAPI.getSearchAnalytics(params)
       ]);
 
       setOverview(overviewRes.data.data);
@@ -196,6 +214,7 @@ export default function AnalyticsPage() {
       setTraffic(trafficRes.data.data);
       setUsers(usersRes?.data.data || null);
       setMedia(mediaRes.data.data);
+      setSearch(searchRes.data.data);
 
     } catch (error: any) {
       console.error('Failed to fetch analytics:', error);
@@ -301,7 +320,8 @@ export default function AnalyticsPage() {
     { id: 'content', label: 'Content', icon: FileText },
     { id: 'traffic', label: 'Traffic', icon: Activity },
     { id: 'users', label: 'Users', icon: Users },
-    { id: 'media', label: 'Media', icon: Image }
+    { id: 'media', label: 'Media', icon: Image },
+    { id: 'search', label: 'Search', icon: Search }
   ];
 
   return (
@@ -830,6 +850,157 @@ export default function AnalyticsPage() {
                 </div>
               )}
             </Card>
+          </div>
+        )}
+
+        {/* Search Tab */}
+        {activeTab === 'search' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2">
+              <Card padding="lg">
+                <h2 className="text-xl font-semibold text-[var(--foreground)] mb-6">
+                  Top Search Terms
+                </h2>
+                {isLoading ? (
+                  <LoadingSkeleton lines={6} />
+                ) : search?.searchTerms?.length ? (
+                  <div className="space-y-4">
+                    {search.searchTerms.map((term, index) => {
+                      const getTrendIcon = (trend: string) => {
+                        switch (trend) {
+                          case 'up':
+                            return <ArrowUpRight size={14} className="text-green-500" />;
+                          case 'down':
+                            return <ArrowDownRight size={14} className="text-red-500" />;
+                          default:
+                            return <Minus size={14} className="text-gray-500" />;
+                        }
+                      };
+
+                      const getTrendColor = (trend: string) => {
+                        switch (trend) {
+                          case 'up':
+                            return 'text-green-600 bg-green-50 border-green-200';
+                          case 'down':
+                            return 'text-red-600 bg-red-50 border-red-200';
+                          default:
+                            return 'text-gray-600 bg-gray-50 border-gray-200';
+                        }
+                      };
+
+                      return (
+                        <div key={term.term} className="flex items-center justify-between p-4 rounded-lg bg-[var(--surface)]">
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-[var(--primary)]/10">
+                              <span className="text-sm font-medium text-[var(--primary)]">
+                                {index + 1}
+                              </span>
+                            </div>
+                            <div>
+                              <h4 className="font-medium text-[var(--foreground)]">
+                                "{term.term}"
+                              </h4>
+                              <p className="text-sm text-[var(--secondary)]">
+                                {term.count} searches
+                              </p>
+                            </div>
+                          </div>
+                          
+                          <div className={`flex items-center gap-1 px-2 py-1 rounded-full border text-xs ${getTrendColor(term.trend)}`}>
+                            {getTrendIcon(term.trend)}
+                            <span className="capitalize">{term.trend}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <Search className="w-12 h-12 text-[var(--secondary)] mx-auto mb-3" />
+                    <p className="text-[var(--secondary)]">No search data available</p>
+                  </div>
+                )}
+              </Card>
+            </div>
+
+            <div className="space-y-6">
+              <Card padding="lg">
+                <h2 className="text-xl font-semibold text-[var(--foreground)] mb-6">
+                  Search Overview
+                </h2>
+                {isLoading ? (
+                  <LoadingSkeleton lines={3} />
+                ) : (
+                  <div className="space-y-4">
+                    <div className="text-center p-6 bg-[var(--surface)] rounded-lg">
+                      <div className="text-3xl font-bold text-[var(--primary)] mb-1">
+                        {search?.totalSearches?.toLocaleString() || '0'}
+                      </div>
+                      <div className="text-sm text-[var(--secondary)]">
+                        Total Searches This Period
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="text-center p-4 bg-[var(--surface)] rounded-lg">
+                        <div className="text-xl font-bold text-[var(--foreground)] mb-1">
+                          {search?.searchTerms?.length || '0'}
+                        </div>
+                        <div className="text-xs text-[var(--secondary)]">
+                          Unique Queries
+                        </div>
+                      </div>
+                      
+                      <div className="text-center p-4 bg-[var(--surface)] rounded-lg">
+                        <div className="text-xl font-bold text-[var(--foreground)] mb-1">
+                          {search?.searchTerms?.reduce((sum, term) => sum + term.count, 0) ? 
+                           Math.round((search?.searchTerms?.reduce((sum, term) => sum + term.count, 0) || 0) / (search?.searchTerms?.length || 1)) : '0'}
+                        </div>
+                        <div className="text-xs text-[var(--secondary)]">
+                          Avg per Query
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </Card>
+
+              <Card padding="lg">
+                <h2 className="text-xl font-semibold text-[var(--foreground)] mb-6">
+                  Search Results Performance
+                </h2>
+                {isLoading ? (
+                  <LoadingSkeleton lines={4} />
+                ) : search?.searchResults?.length ? (
+                  <div className="space-y-3">
+                    {search.searchResults.slice(0, 5).map((result, index) => (
+                      <div key={result._id} className="flex items-center gap-3 p-3 rounded-lg hover:bg-[var(--surface)] transition-colors">
+                        <div className="flex items-center justify-center w-6 h-6 rounded bg-[var(--primary)]/10">
+                          <span className="text-xs font-medium text-[var(--primary)]">
+                            {index + 1}
+                          </span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-[var(--foreground)] truncate text-sm">
+                            {result.title}
+                          </p>
+                          <div className="flex items-center gap-2 text-xs text-[var(--secondary)]">
+                            <span>{result.views} views</span>
+                            <span>•</span>
+                            <span>Score: {Math.round(result.searchScore)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-6">
+                    <FileText className="w-8 h-8 text-[var(--secondary)] mx-auto mb-2" />
+                    <p className="text-sm text-[var(--secondary)]">No search results data</p>
+                  </div>
+                )}
+              </Card>
+            </div>
           </div>
         )}
       </motion.div>

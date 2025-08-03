@@ -25,6 +25,8 @@ import { Button } from '@/components/ui/Button';
 import { LoadingSkeleton } from '@/components/ui/LoadingSpinner';
 import { showToast } from '@/components/ui/Toast';
 import { postsAPI } from '@/lib/api';
+import { useAuthStore } from '@/lib/auth';
+import { CommentSection } from '@/components/blog/CommentSection';
 
 interface BlogPost {
   id: string;
@@ -64,6 +66,7 @@ interface RelatedPost {
 export default function BlogPostPage() {
   const params = useParams();
   const slug = params.slug as string;
+  const { isAuthenticated, user } = useAuthStore();
   
   const [post, setPost] = useState<BlogPost | null>(null);
   const [relatedPosts, setRelatedPosts] = useState<RelatedPost[]>([]);
@@ -88,12 +91,25 @@ export default function BlogPostPage() {
       const foundPost = allPosts.find((p: any) => p.slug === slug);
       
       if (foundPost) {
-        setPost(foundPost);
+        // Transform the post to ensure consistent ID handling
+        const transformedPost = {
+          ...foundPost,
+          id: foundPost._id || foundPost.id, // Use MongoDB _id or existing id
+          author: {
+            ...foundPost.author,
+            id: foundPost.author._id || foundPost.author.id
+          }
+        };
+        setPost(transformedPost);
         
         // Fetch related posts from same category
         const relatedPosts = allPosts
-          .filter((p: any) => p.category === foundPost.category && p.id !== foundPost.id)
-          .slice(0, 3);
+          .filter((p: any) => p.category === foundPost.category && (p._id || p.id) !== (foundPost._id || foundPost.id))
+          .slice(0, 3)
+          .map((p: any) => ({
+            ...p,
+            id: p._id || p.id
+          }));
         setRelatedPosts(relatedPosts);
       } else {
         // Post not found
@@ -191,6 +207,11 @@ export default function BlogPostPage() {
   };
 
   const handleLike = async () => {
+    if (!isAuthenticated) {
+      showToast.error('Please login to like this post');
+      return;
+    }
+
     try {
       if (post) {
         await postsAPI.toggleLike(post.id);
@@ -199,6 +220,7 @@ export default function BlogPostPage() {
           ...post, 
           likes: isLiked ? post.likes - 1 : post.likes + 1 
         });
+        showToast.success(isLiked ? 'Post unliked' : 'Post liked');
       }
     } catch (error) {
       showToast.error('Failed to update like');
@@ -491,6 +513,9 @@ export default function BlogPostPage() {
             </Card>
           </motion.div>
         )}
+
+        {/* Comments Section */}
+        <CommentSection postId={post.id || post._id || ''} />
       </article>
 
       {/* Related Posts */}

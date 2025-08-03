@@ -14,7 +14,7 @@ export default function DashboardLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <ProtectedRoute>
+    <ProtectedRoute requiredRole="editor">
       <div className="min-h-screen bg-[var(--background)]">
         <Header 
           onMenuToggle={() => setSidebarOpen(!sidebarOpen)}

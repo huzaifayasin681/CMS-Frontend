@@ -4,35 +4,9 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Calendar, User, Eye, Users, Target, Award, Heart } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
+import { PageTemplateProps } from '@/types/page';
 
-interface PageData {
-  id: string;
-  title: string;
-  slug: string;
-  content: string;
-  excerpt?: string;
-  featuredImage?: string;
-  author: {
-    id: string;
-    username: string;
-    firstName?: string;
-    lastName?: string;
-    avatar?: string;
-  };
-  publishedAt: string;
-  updatedAt: string;
-  views: number;
-  status: 'published' | 'draft';
-  template: string;
-  seoTitle?: string;
-  seoDescription?: string;
-}
-
-interface AboutTemplateProps {
-  page: PageData;
-}
-
-export const AboutTemplate: React.FC<AboutTemplateProps> = ({ page }) => {
+export const AboutTemplate: React.FC<PageTemplateProps> = ({ page }) => {
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -64,11 +38,24 @@ export const AboutTemplate: React.FC<AboutTemplateProps> = ({ page }) => {
     }
   ];
 
+  // Build stats from page data with fallbacks
   const stats = [
-    { label: 'Years of Experience', value: '10+' },
-    { label: 'Happy Customers', value: '500+' },
-    { label: 'Projects Completed', value: '1,000+' },
-    { label: 'Team Members', value: '25+' }
+    { 
+      label: 'Years of Experience', 
+      value: page.yearsExperience || '10+' 
+    },
+    { 
+      label: 'Happy Customers', 
+      value: page.customers || '500+' 
+    },
+    { 
+      label: 'Projects Completed', 
+      value: page.projects || '1,000+' 
+    },
+    { 
+      label: 'Team Members', 
+      value: page.teamSize || '25+' 
+    }
   ];
 
   return (

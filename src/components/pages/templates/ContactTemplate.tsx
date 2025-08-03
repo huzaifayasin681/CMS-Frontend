@@ -7,35 +7,9 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { showToast } from '@/components/ui/Toast';
+import { PageTemplateProps } from '@/types/page';
 
-interface PageData {
-  id: string;
-  title: string;
-  slug: string;
-  content: string;
-  excerpt?: string;
-  featuredImage?: string;
-  author: {
-    id: string;
-    username: string;
-    firstName?: string;
-    lastName?: string;
-    avatar?: string;
-  };
-  publishedAt: string;
-  updatedAt: string;
-  views: number;
-  status: 'published' | 'draft';
-  template: string;
-  seoTitle?: string;
-  seoDescription?: string;
-}
-
-interface ContactTemplateProps {
-  page: PageData;
-}
-
-export const ContactTemplate: React.FC<ContactTemplateProps> = ({ page }) => {
+export const ContactTemplate: React.FC<PageTemplateProps> = ({ page }) => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -72,25 +46,26 @@ export const ContactTemplate: React.FC<ContactTemplateProps> = ({ page }) => {
     }
   };
 
+  // Build contact info from page data with fallbacks
   const contactInfo = [
-    {
+    ...(page.email ? [{
       icon: Mail,
       label: 'Email',
-      value: 'hello@example.com',
+      value: page.email,
       description: 'Send us an email anytime!'
-    },
-    {
+    }] : []),
+    ...(page.phone ? [{
       icon: Phone,
       label: 'Phone',
-      value: '+1 (555) 123-4567',
+      value: page.phone,
       description: 'Mon-Fri from 8am to 5pm'
-    },
-    {
+    }] : []),
+    ...(page.address ? [{
       icon: MapPin,
       label: 'Address',
-      value: '123 Business Street, Suite 100',
-      description: 'City, State 12345'
-    },
+      value: page.address,
+      description: 'Visit us at our location'
+    }] : []),
     {
       icon: Clock,
       label: 'Business Hours',
@@ -98,6 +73,30 @@ export const ContactTemplate: React.FC<ContactTemplateProps> = ({ page }) => {
       description: 'Saturday: 10:00 AM - 4:00 PM'
     }
   ];
+
+  // If no contact info is provided, show default
+  if (contactInfo.length === 1) { // only business hours
+    contactInfo.unshift(
+      {
+        icon: Mail,
+        label: 'Email',
+        value: 'hello@example.com',
+        description: 'Send us an email anytime!'
+      },
+      {
+        icon: Phone,
+        label: 'Phone',
+        value: '+1 (555) 123-4567',
+        description: 'Mon-Fri from 8am to 5pm'
+      },
+      {
+        icon: MapPin,
+        label: 'Address',
+        value: '123 Business Street, Suite 100',
+        description: 'City, State 12345'
+      }
+    );
+  }
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">

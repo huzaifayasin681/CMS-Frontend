@@ -20,7 +20,8 @@ import {
   Calendar,
   HardDrive,
   CheckSquare,
-  Square
+  Square,
+  RefreshCw
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -31,7 +32,7 @@ import { usePermissions } from '@/lib/auth';
 import { mediaAPI } from '@/lib/api';
 
 interface MediaFile {
-  id: string;
+  _id: string;
   fileName: string;
   originalName: string;
   mimeType: string;
@@ -41,63 +42,23 @@ interface MediaFile {
   caption?: string;
   width?: number;
   height?: number;
-  uploadedAt: string;
-  uploadedBy: string;
+  createdAt: string;
+  uploadedBy: {
+    _id: string;
+    name: string;
+    email: string;
+  };
   folder: string;
+  cloudinaryId?: string;
+  tags: string[];
+  isUsed: boolean;
+  usageCount: number;
 }
 
-const mockMediaFiles: MediaFile[] = [
-  {
-    id: '1',
-    fileName: 'hero-banner.jpg',
-    originalName: 'hero-banner.jpg',
-    mimeType: 'image/jpeg',
-    size: 1024000,
-    url: 'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=800',
-    alt: 'Hero banner image',
-    width: 1920,
-    height: 1080,
-    uploadedAt: '2024-01-15T10:00:00Z',
-    uploadedBy: 'John Doe',
-    folder: 'images'
-  },
-  {
-    id: '2',
-    fileName: 'profile-photo.png',
-    originalName: 'my-profile.png',
-    mimeType: 'image/png',
-    size: 512000,
-    url: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400',
-    alt: 'Profile photo',
-    width: 800,
-    height: 800,
-    uploadedAt: '2024-01-14T15:30:00Z',
-    uploadedBy: 'Jane Smith',
-    folder: 'profiles'
-  },
-  {
-    id: '3',
-    fileName: 'tutorial-video.mp4',
-    originalName: 'getting-started.mp4',
-    mimeType: 'video/mp4',
-    size: 10240000,
-    url: '',
-    uploadedAt: '2024-01-13T12:00:00Z',
-    uploadedBy: 'Mike Johnson',
-    folder: 'videos'
-  },
-  {
-    id: '4',
-    fileName: 'document.pdf',
-    originalName: 'user-guide.pdf',
-    mimeType: 'application/pdf',
-    size: 256000,
-    url: '',
-    uploadedAt: '2024-01-12T09:15:00Z',
-    uploadedBy: 'Sarah Wilson',
-    folder: 'documents'
-  }
-];
+// Add a type alias for easier usage
+type MediaFileId = string;
+
+// Mock data removed - now using real API
 
 type ViewMode = 'grid' | 'list';
 type FilterType = 'all' | 'images' | 'videos' | 'documents';
@@ -111,15 +72,70 @@ export default function MediaLibraryPage() {
   const [filterType, setFilterType] = useState<FilterType>('all');
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   const permissions = usePermissions();
 
+  // Transform API response to match frontend interface
+  const transformMediaFile = (apiFile: any): MediaFile => {
+    return {
+      _id: apiFile._id || apiFile.id,
+      fileName: apiFile.fileName,
+      originalName: apiFile.originalName,
+      mimeType: apiFile.mimeType,
+      size: apiFile.size,
+      url: apiFile.url,
+      alt: apiFile.alt,
+      caption: apiFile.caption,
+      width: apiFile.width,
+      height: apiFile.height,
+      createdAt: apiFile.createdAt || apiFile.uploadedAt,
+      uploadedBy: typeof apiFile.uploadedBy === 'string' 
+        ? { _id: '', name: apiFile.uploadedBy, email: '' }
+        : apiFile.uploadedBy,
+      folder: apiFile.folder,
+      cloudinaryId: apiFile.cloudinaryId,
+      tags: apiFile.tags || [],
+      isUsed: apiFile.isUsed || false,
+      usageCount: apiFile.usageCount || 0
+    };
+  };
+
+  // Refresh media files function
+  const refreshMediaFiles = async () => {
+    try {
+      setIsLoading(true);
+      const response = await mediaAPI.getMedia();
+      const rawFiles = response.data.media || response.data.files || response.data || [];
+      const transformedFiles = rawFiles.map(transformMediaFile);
+      setMediaFiles(transformedFiles);
+      setFilteredFiles(transformedFiles);
+    } catch (error) {
+      console.error('Failed to refresh media files:', error);
+      showToast.error('Failed to refresh media files');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
     const fetchMedia = async () => {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      setMediaFiles(mockMediaFiles);
-      setFilteredFiles(mockMediaFiles);
-      setIsLoading(false);
+      try {
+        setIsLoading(true);
+        const response = await mediaAPI.getMedia();
+        const rawFiles = response.data.media || response.data.files || response.data || [];
+        const transformedFiles = rawFiles.map(transformMediaFile);
+        setMediaFiles(transformedFiles);
+        setFilteredFiles(transformedFiles);
+      } catch (error) {
+        console.error('Failed to fetch media files:', error);
+        showToast.error('Failed to load media files');
+        // Fallback to empty array on error
+        setMediaFiles([]);
+        setFilteredFiles([]);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     fetchMedia();
@@ -152,25 +168,26 @@ export default function MediaLibraryPage() {
     setIsUploading(true);
     
     try {
-      // Simulate upload process
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      const newFiles: MediaFile[] = Array.from(files).map((file, index) => ({
-        id: `new-${Date.now()}-${index}`,
-        fileName: file.name,
-        originalName: file.name,
-        mimeType: file.type,
-        size: file.size,
-        url: file.type.startsWith('image/') ? URL.createObjectURL(file) : '',
-        uploadedAt: new Date().toISOString(),
-        uploadedBy: 'Current User',
-        folder: 'uploads'
-      }));
+      const uploadPromises = Array.from(files).map(async (file) => {
+        const response = await mediaAPI.uploadMedia(file, {
+          folder: 'uploads'
+        });
+        return response.data.media || response.data;
+      });
 
-      setMediaFiles(prev => [...newFiles, ...prev]);
+      const rawUploadedFiles = await Promise.all(uploadPromises);
+      const uploadedFiles = rawUploadedFiles.map(transformMediaFile);
+      
+      // Add uploaded files to the beginning of the list
+      setMediaFiles(prev => [...uploadedFiles, ...prev]);
       showToast.success(`${files.length} file(s) uploaded successfully`);
-    } catch (error) {
-      showToast.error('Upload failed. Please try again.');
+      
+      // Clear the input value so the same file can be uploaded again
+      event.target.value = '';
+    } catch (error: any) {
+      console.error('Upload failed:', error);
+      const errorMessage = error.response?.data?.message || 'Upload failed. Please try again.';
+      showToast.error(errorMessage);
     } finally {
       setIsUploading(false);
     }
@@ -180,12 +197,17 @@ export default function MediaLibraryPage() {
     if (!window.confirm('Are you sure you want to delete this file?')) return;
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      setMediaFiles(prev => prev.filter(file => file.id !== fileId));
+      setIsDeleting(true);
+      await mediaAPI.deleteMedia(fileId);
+      setMediaFiles(prev => prev.filter(file => file._id !== fileId));
       setSelectedFiles(prev => prev.filter(id => id !== fileId));
       showToast.success('File deleted successfully');
-    } catch (error) {
-      showToast.error('Failed to delete file');
+    } catch (error: any) {
+      console.error('Delete failed:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to delete file';
+      showToast.error(errorMessage);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -193,12 +215,18 @@ export default function MediaLibraryPage() {
     if (!window.confirm(`Delete ${selectedFiles.length} selected files?`)) return;
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      setMediaFiles(prev => prev.filter(file => !selectedFiles.includes(file.id)));
+      setIsDeleting(true);
+      await mediaAPI.bulkDeleteMedia(selectedFiles);
+      setMediaFiles(prev => prev.filter(file => !selectedFiles.includes(file._id)));
+      const deletedCount = selectedFiles.length;
       setSelectedFiles([]);
-      showToast.success(`${selectedFiles.length} files deleted successfully`);
-    } catch (error) {
-      showToast.error('Failed to delete files');
+      showToast.success(`${deletedCount} files deleted successfully`);
+    } catch (error: any) {
+      console.error('Bulk delete failed:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to delete files';
+      showToast.error(errorMessage);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -214,7 +242,7 @@ export default function MediaLibraryPage() {
     if (selectedFiles.length === filteredFiles.length) {
       setSelectedFiles([]);
     } else {
-      setSelectedFiles(filteredFiles.map(file => file.id));
+      setSelectedFiles(filteredFiles.map(file => file._id));
     }
   };
 
@@ -257,24 +285,38 @@ export default function MediaLibraryPage() {
           </p>
         </div>
 
-        {permissions.canManageMedia && (
-          <div className="flex items-center gap-3">
-            <input
-              type="file"
-              multiple
-              accept="image/*,video/*,.pdf,.doc,.docx"
-              onChange={handleFileUpload}
-              className="hidden"
-              id="file-upload"
-            />
-            <label htmlFor="file-upload">
-              <span className={`inline-flex items-center gap-2 px-4 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary)]/90 transition-colors cursor-pointer ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                <Upload className="w-4 h-4" />
-                {isUploading ? 'Uploading...' : 'Upload Files'}
-              </span>
-            </label>
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={RefreshCw}
+            onClick={refreshMediaFiles}
+            disabled={isLoading}
+            className={isLoading ? 'animate-spin' : ''}
+          >
+            Refresh
+          </Button>
+          
+          {permissions.canManageMedia && (
+            <>
+              <input
+                type="file"
+                multiple
+                accept="image/*,video/*,.pdf,.doc,.docx"
+                onChange={handleFileUpload}
+                className="hidden"
+                id="file-upload"
+                disabled={isUploading}
+              />
+              <label htmlFor="file-upload">
+                <span className={`inline-flex items-center gap-2 px-4 py-2 bg-[var(--primary)] text-white rounded-lg hover:bg-[var(--primary)]/90 transition-colors cursor-pointer ${isUploading ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                  <Upload className="w-4 h-4" />
+                  {isUploading ? 'Uploading...' : 'Upload Files'}
+                </span>
+              </label>
+            </>
+          )}
+        </div>
       </motion.div>
 
       {/* Stats */}
@@ -377,8 +419,9 @@ export default function MediaLibraryPage() {
                   size="sm"
                   icon={Trash2}
                   onClick={handleBulkDelete}
+                  disabled={isDeleting}
                 >
-                  Delete Selected
+                  {isDeleting ? 'Deleting...' : 'Delete Selected'}
                 </Button>
               )}
             </div>
@@ -405,11 +448,11 @@ export default function MediaLibraryPage() {
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {filteredFiles.map((file, index) => {
                 const FileIcon = getFileIcon(file.mimeType);
-                const isSelected = selectedFiles.includes(file.id);
+                const isSelected = selectedFiles.includes(file._id);
                 
                 return (
                   <motion.div
-                    key={file.id}
+                    key={file._id}
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: index * 0.05 }}
@@ -430,7 +473,7 @@ export default function MediaLibraryPage() {
                         
                         <div className="absolute top-2 left-2">
                           <button
-                            onClick={() => handleSelectFile(file.id)}
+                            onClick={() => handleSelectFile(file._id)}
                             className={`w-6 h-6 rounded-full border-2 ${
                               isSelected 
                                 ? 'bg-[var(--primary)] border-[var(--primary)]' 
@@ -488,18 +531,18 @@ export default function MediaLibraryPage() {
                   <tbody>
                     {filteredFiles.map((file, index) => {
                       const FileIcon = getFileIcon(file.mimeType);
-                      const isSelected = selectedFiles.includes(file.id);
+                      const isSelected = selectedFiles.includes(file._id);
                       
                       return (
                         <motion.tr
-                          key={file.id}
+                          key={file._id}
                           initial={{ opacity: 0, x: -20 }}
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ delay: index * 0.05 }}
                           className={`border-b border-[var(--border)] hover:bg-[var(--surface)] ${isSelected ? 'bg-[var(--primary)]/5' : ''}`}
                         >
                           <td className="p-4">
-                            <button onClick={() => handleSelectFile(file.id)}>
+                            <button onClick={() => handleSelectFile(file._id)}>
                               {isSelected ? <CheckSquare size={16} /> : <Square size={16} />}
                             </button>
                           </td>
@@ -526,8 +569,8 @@ export default function MediaLibraryPage() {
                           <td className="p-4 text-[var(--secondary)]">{formatFileSize(file.size)}</td>
                           <td className="p-4 text-[var(--secondary)]">
                             <div>
-                              <p>{new Date(file.uploadedAt).toLocaleDateString()}</p>
-                              <p className="text-sm">{file.uploadedBy}</p>
+                              <p>{new Date(file.createdAt).toLocaleDateString()}</p>
+                              <p className="text-sm">{file.uploadedBy?.name || 'Unknown User'}</p>
                             </div>
                           </td>
                           <td className="p-4">
@@ -553,7 +596,8 @@ export default function MediaLibraryPage() {
                                   variant="ghost"
                                   size="sm"
                                   icon={Trash2}
-                                  onClick={() => handleDeleteFile(file.id)}
+                                  onClick={() => handleDeleteFile(file._id)}
+                                  disabled={isDeleting}
                                 />
                               )}
                             </div>

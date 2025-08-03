@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { showToast } from '@/components/ui/Toast';
+import { AvatarUpload } from '@/components/ui/AvatarUpload';
 import { useAuthStore } from '@/lib/auth';
 
 export default function ProfilePage() {
@@ -51,6 +52,12 @@ export default function ProfilePage() {
 
   const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
+    
+    // Validate bio length
+    if (name === 'bio' && value.length > 500) {
+      return;
+    }
+    
     setProfileData(prev => ({ ...prev, [name]: value }));
   };
 
@@ -111,11 +118,8 @@ export default function ProfilePage() {
     }
   };
 
-  const handleAvatarUpload = () => {
-    const url = window.prompt('Enter avatar URL:');
-    if (url) {
-      setProfileData(prev => ({ ...prev, avatar: url }));
-    }
+  const handleAvatarChange = (url: string) => {
+    setProfileData(prev => ({ ...prev, avatar: url }));
   };
 
   const togglePasswordVisibility = (field: keyof typeof showPasswords) => {
@@ -155,28 +159,14 @@ export default function ProfilePage() {
           transition={{ delay: 0.1 }}
         >
           <Card padding="lg" className="text-center">
-            <div className="relative inline-block mb-4">
-              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[var(--primary)] to-[var(--accent)] flex items-center justify-center mx-auto">
-                {profileData.avatar ? (
-                  <img
-                    src={profileData.avatar}
-                    alt={user?.username}
-                    className="w-24 h-24 rounded-full object-cover"
-                  />
-                ) : (
-                  <User className="w-12 h-12 text-white" />
-                )}
-              </div>
-              
-              {isEditing && (
-                <Button
-                  variant="primary"
-                  size="sm"
-                  icon={Camera}
-                  onClick={handleAvatarUpload}
-                  className="absolute -bottom-2 -right-2 rounded-full w-8 h-8 p-0"
-                />
-              )}
+            <div className="mb-4">
+              <AvatarUpload
+                currentAvatar={profileData.avatar}
+                onAvatarChange={handleAvatarChange}
+                size="xl"
+                editable={isEditing}
+                username={user?.username || 'User'}
+              />
             </div>
 
             <h2 className="text-xl font-bold text-[var(--foreground)] mb-1">
@@ -203,6 +193,27 @@ export default function ProfilePage() {
                 <div className="flex items-center justify-center gap-2">
                   <User size={14} />
                   Last active {new Date(user.lastLogin).toLocaleDateString()}
+                </div>
+              )}
+              
+              {profileData.location && (
+                <div className="flex items-center justify-center gap-2">
+                  <MapPin size={14} />
+                  {profileData.location}
+                </div>
+              )}
+              
+              {profileData.website && (
+                <div className="flex items-center justify-center gap-2">
+                  <Globe size={14} />
+                  <a 
+                    href={profileData.website} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-[var(--primary)] hover:underline"
+                  >
+                    Website
+                  </a>
                 </div>
               )}
             </div>
@@ -333,8 +344,19 @@ export default function ProfilePage() {
                 rows={4}
                 className="w-full px-3 py-2 border border-[var(--border)] rounded-lg bg-[var(--surface)] text-[var(--foreground)] placeholder-[var(--secondary)] resize-none focus:outline-none focus:ring-2 focus:ring-[var(--ring)] disabled:opacity-60"
               />
-              <p className="text-xs text-[var(--secondary)] mt-1">
+              <p className={`text-xs mt-1 ${
+                profileData.bio.length > 450 
+                  ? 'text-[var(--danger)]' 
+                  : profileData.bio.length > 350 
+                    ? 'text-[var(--warning)]' 
+                    : 'text-[var(--secondary)]'
+              }`}>
                 {profileData.bio.length}/500 characters
+                {profileData.bio.length > 450 && (
+                  <span className="ml-2 text-[var(--danger)]">
+                    ({500 - profileData.bio.length} remaining)
+                  </span>
+                )}
               </p>
             </div>
           </Card>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   Save,
@@ -20,104 +20,156 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { showToast } from '@/components/ui/Toast';
+import { LogoUpload } from '@/components/ui/LogoUpload';
 import { usePermissions, useAuthStore } from '@/lib/auth';
 import { useThemeStore } from '@/lib/theme';
+import { settingsAPI } from '@/lib/api';
 
 export default function SettingsPage() {
   const { user } = useAuthStore();
   const { theme, setTheme } = useThemeStore();
   const permissions = usePermissions();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
 
-  // General Settings
-  const [generalSettings, setGeneralSettings] = useState({
-    siteName: 'Content Hub',
-    siteDescription: 'A powerful content management system',
-    siteUrl: 'https://yourdomain.com',
-    adminEmail: 'admin@yourdomain.com',
+  // All settings combined
+  const [settings, setSettings] = useState({
+    // General Settings
+    siteName: '',
+    siteDescription: '',
+    siteUrl: '',
+    adminEmail: '',
     timezone: 'America/New_York',
     language: 'en',
-    siteLogo: ''
-  });
-
-  // Content Settings
-  const [contentSettings, setContentSettings] = useState({
+    siteLogo: '',
+    
+    // Content Settings
     postsPerPage: 10,
     allowComments: true,
     moderateComments: true,
     allowRegistration: false,
     defaultRole: 'viewer' as 'viewer' | 'editor' | 'admin',
     autoSave: true,
-    contentVersioning: true
-  });
-
-  // Email Settings
-  const [emailSettings, setEmailSettings] = useState({
+    contentVersioning: true,
+    
+    // Email Settings
     smtpHost: '',
-    smtpPort: '587',
+    smtpPort: 587,
     smtpUser: '',
     smtpPassword: '',
-    smtpSecure: true,
+    smtpSecure: false,
     fromEmail: '',
-    fromName: ''
-  });
-
-  // Notification Settings
-  const [notifications, setNotifications] = useState({
+    fromName: '',
+    
+    // Notification Settings
     newComments: true,
     newUsers: true,
-    systemUpdates: false,
-    emailDigest: true,
-    desktopNotifications: false
+    newPosts: false,
+    systemUpdates: true,
+    emailDigest: false,
+    desktopNotifications: true,
+    
+    // Security Settings
+    enableTwoFactor: false,
+    sessionTimeout: 24,
+    maxLoginAttempts: 5,
+    
+    // Analytics Settings
+    enableAnalytics: true,
+    trackingCode: ''
   });
+
+  // Load settings from API
+  useEffect(() => {
+    const fetchSettings = async () => {
+      setIsLoading(true);
+      try {
+        const response = await settingsAPI.getSettings();
+        if (response.data.success) {
+          setSettings(response.data.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch settings:', error);
+        showToast.error('Failed to load settings');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (permissions.isAdmin) {
+      fetchSettings();
+    } else {
+      setIsLoading(false);
+    }
+  }, [permissions.isAdmin]);
+
+  // Save settings
+  const handleSaveSettings = async () => {
+    setIsSaving(true);
+    try {
+      const response = await settingsAPI.updateSettings(settings);
+      if (response.data.success) {
+        showToast.success('Settings updated successfully');
+        setSettings(response.data.data);
+      }
+    } catch (error: any) {
+      console.error('Failed to save settings:', error);
+      showToast.error(error.response?.data?.message || 'Failed to save settings');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Update settings helper
+  const updateSetting = (key: string, value: any) => {
+    setSettings(prev => ({ ...prev, [key]: value }));
+  };
 
   const [showSmtpPassword, setShowSmtpPassword] = useState(false);
 
   const handleGeneralChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setGeneralSettings(prev => ({ ...prev, [name]: value }));
+    updateSetting(name, value);
   };
 
   const handleContentChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value, type, checked } = e.target as HTMLInputElement;
-    setContentSettings(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
+    updateSetting(name, type === 'checkbox' ? checked : value);
   };
 
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
-    setEmailSettings(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
+    updateSetting(name, type === 'checkbox' ? checked : value);
   };
 
   const handleNotificationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, checked } = e.target;
-    setNotifications(prev => ({ ...prev, [name]: checked }));
+    updateSetting(name, checked);
   };
 
-  const handleSaveSettings = async () => {
-    setIsLoading(true);
-    
+  const handleLogoUpload = async (file: File) => {
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      showToast.success('Settings saved successfully');
-    } catch (error) {
-      showToast.error('Failed to save settings');
-    } finally {
-      setIsLoading(false);
+      const response = await settingsAPI.uploadLogo(file);
+      updateSetting('siteLogo', response.data.media.url);
+      showToast.success('Logo uploaded successfully');
+    } catch (error: any) {
+      console.error('Logo upload failed:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to upload logo';
+      showToast.error(errorMessage);
     }
   };
 
-  const handleLogoUpload = () => {
-    const url = window.prompt('Enter logo URL:');
-    if (url) {
-      setGeneralSettings(prev => ({ ...prev, siteLogo: url }));
+  const handleTestEmail = async () => {
+    const testEmail = window.prompt('Enter email address to test:');
+    if (!testEmail) return;
+
+    try {
+      await settingsAPI.testEmailConfig(testEmail);
+      showToast.success(`Test email sent to ${testEmail}`);
+    } catch (error: any) {
+      console.error('Email test failed:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to send test email';
+      showToast.error(errorMessage);
     }
   };
 
@@ -157,6 +209,12 @@ export default function SettingsPage() {
       title: 'Notifications',
       icon: Bell,
       description: 'Notification preferences and alerts'
+    },
+    {
+      id: 'security',
+      title: 'Security',
+      icon: Shield,
+      description: 'Security and authentication settings'
     }
   ];
 
@@ -168,7 +226,7 @@ export default function SettingsPage() {
         <Input
           label="Site Name"
           name="siteName"
-          value={generalSettings.siteName}
+          value={settings.siteName}
           onChange={handleGeneralChange}
           placeholder="Your site name"
         />
@@ -176,7 +234,7 @@ export default function SettingsPage() {
         <Input
           label="Site URL"
           name="siteUrl"
-          value={generalSettings.siteUrl}
+          value={settings.siteUrl}
           onChange={handleGeneralChange}
           placeholder="https://yourdomain.com"
         />
@@ -185,7 +243,7 @@ export default function SettingsPage() {
           label="Admin Email"
           name="adminEmail"
           type="email"
-          value={generalSettings.adminEmail}
+          value={settings.adminEmail}
           onChange={handleGeneralChange}
           placeholder="admin@yourdomain.com"
         />
@@ -196,7 +254,7 @@ export default function SettingsPage() {
           </label>
           <select
             name="timezone"
-            value={generalSettings.timezone}
+            value={settings.timezone}
             onChange={handleGeneralChange}
             className="w-full px-3 py-2 border border-[var(--border)] rounded-lg bg-[var(--surface)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
           >
@@ -217,8 +275,8 @@ export default function SettingsPage() {
         </label>
         <textarea
           name="siteDescription"
-          value={generalSettings.siteDescription}
-          onChange={(e) => setGeneralSettings(prev => ({ ...prev, siteDescription: e.target.value }))}
+          value={settings.siteDescription}
+          onChange={(e) => updateSetting('siteDescription', e.target.value)}
           placeholder="Describe your website..."
           rows={3}
           className="w-full px-3 py-2 border border-[var(--border)] rounded-lg bg-[var(--surface)] text-[var(--foreground)] placeholder-[var(--secondary)] resize-none focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
@@ -226,25 +284,14 @@ export default function SettingsPage() {
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
+        <label className="block text-sm font-medium text-[var(--foreground)] mb-4">
           Site Logo
         </label>
-        <div className="flex items-center gap-4">
-          {generalSettings.siteLogo ? (
-            <img
-              src={generalSettings.siteLogo}
-              alt="Site Logo"
-              className="w-16 h-16 object-cover rounded-lg border border-[var(--border)]"
-            />
-          ) : (
-            <div className="w-16 h-16 bg-[var(--surface)] border border-[var(--border)] rounded-lg flex items-center justify-center">
-              <Upload className="w-6 h-6 text-[var(--secondary)]" />
-            </div>
-          )}
-          <Button variant="outline" onClick={handleLogoUpload}>
-            {generalSettings.siteLogo ? 'Change Logo' : 'Upload Logo'}
-          </Button>
-        </div>
+        <LogoUpload
+          currentLogo={settings.siteLogo}
+          onLogoChange={(url) => updateSetting('siteLogo', url)}
+          disabled={isSaving}
+        />
       </div>
     </div>
   );
@@ -259,7 +306,7 @@ export default function SettingsPage() {
           <input
             type="number"
             name="postsPerPage"
-            value={contentSettings.postsPerPage}
+            value={settings.postsPerPage}
             onChange={handleContentChange}
             min="1"
             max="50"
@@ -273,7 +320,7 @@ export default function SettingsPage() {
           </label>
           <select
             name="defaultRole"
-            value={contentSettings.defaultRole}
+            value={settings.defaultRole}
             onChange={handleContentChange}
             className="w-full px-3 py-2 border border-[var(--border)] rounded-lg bg-[var(--surface)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
           >
@@ -296,7 +343,7 @@ export default function SettingsPage() {
             <input
               type="checkbox"
               name={setting.name}
-              checked={contentSettings[setting.name as keyof typeof contentSettings] as boolean}
+              checked={settings[setting.name as keyof typeof settings] as boolean}
               onChange={handleContentChange}
               className="mt-1 rounded border-[var(--border)] text-[var(--primary)] focus:ring-[var(--ring)]"
             />
@@ -357,7 +404,7 @@ export default function SettingsPage() {
         <Input
           label="SMTP Host"
           name="smtpHost"
-          value={emailSettings.smtpHost}
+          value={settings.smtpHost}
           onChange={handleEmailChange}
           placeholder="smtp.gmail.com"
         />
@@ -366,7 +413,7 @@ export default function SettingsPage() {
           label="SMTP Port"
           name="smtpPort"
           type="number"
-          value={emailSettings.smtpPort}
+          value={settings.smtpPort}
           onChange={handleEmailChange}
           placeholder="587"
         />
@@ -374,7 +421,7 @@ export default function SettingsPage() {
         <Input
           label="SMTP Username"
           name="smtpUser"
-          value={emailSettings.smtpUser}
+          value={settings.smtpUser}
           onChange={handleEmailChange}
           placeholder="your-email@gmail.com"
         />
@@ -384,7 +431,7 @@ export default function SettingsPage() {
             label="SMTP Password"
             name="smtpPassword"
             type={showSmtpPassword ? 'text' : 'password'}
-            value={emailSettings.smtpPassword}
+            value={settings.smtpPassword}
             onChange={handleEmailChange}
             placeholder="Your app password"
           />
@@ -401,7 +448,7 @@ export default function SettingsPage() {
           label="From Email"
           name="fromEmail"
           type="email"
-          value={emailSettings.fromEmail}
+          value={settings.fromEmail}
           onChange={handleEmailChange}
           placeholder="noreply@yourdomain.com"
         />
@@ -409,7 +456,7 @@ export default function SettingsPage() {
         <Input
           label="From Name"
           name="fromName"
-          value={emailSettings.fromName}
+          value={settings.fromName}
           onChange={handleEmailChange}
           placeholder="Your Site Name"
         />
@@ -419,7 +466,7 @@ export default function SettingsPage() {
         <input
           type="checkbox"
           name="smtpSecure"
-          checked={emailSettings.smtpSecure}
+          checked={settings.smtpSecure}
           onChange={handleEmailChange}
           className="rounded border-[var(--border)] text-[var(--primary)] focus:ring-[var(--ring)]"
         />
@@ -431,6 +478,22 @@ export default function SettingsPage() {
             Recommended for secure email delivery
           </p>
         </div>
+      </div>
+
+      <div className="flex items-center justify-between p-4 bg-[var(--surface)] rounded-lg border border-[var(--border)]">
+        <div>
+          <h4 className="font-medium text-[var(--foreground)]">Test Email Configuration</h4>
+          <p className="text-sm text-[var(--secondary)]">
+            Send a test email to verify your SMTP settings are working correctly
+          </p>
+        </div>
+        <Button 
+          variant="outline" 
+          onClick={handleTestEmail}
+          disabled={!settings.smtpHost || isSaving}
+        >
+          Send Test Email
+        </Button>
       </div>
     </div>
   );
@@ -448,7 +511,7 @@ export default function SettingsPage() {
           <input
             type="checkbox"
             name={notification.name}
-            checked={notifications[notification.name as keyof typeof notifications]}
+            checked={settings[notification.name as keyof typeof settings] as boolean}
             onChange={handleNotificationChange}
             className="mt-1 rounded border-[var(--border)] text-[var(--primary)] focus:ring-[var(--ring)]"
           />
@@ -465,6 +528,105 @@ export default function SettingsPage() {
     </div>
   );
 
+  const renderSecuritySettings = () => (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div>
+          <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
+            Session Timeout (hours)
+          </label>
+          <input
+            type="number"
+            name="sessionTimeout"
+            value={settings.sessionTimeout || 24}
+            onChange={handleContentChange}
+            min="1"
+            max="168"
+            className="w-full px-3 py-2 border border-[var(--border)] rounded-lg bg-[var(--surface)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
+          />
+          <p className="text-xs text-[var(--secondary)] mt-1">
+            Users will be logged out after this period of inactivity
+          </p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
+            Max Login Attempts
+          </label>
+          <input
+            type="number"
+            name="maxLoginAttempts"
+            value={settings.maxLoginAttempts || 5}
+            onChange={handleContentChange}
+            min="1"
+            max="20"
+            className="w-full px-3 py-2 border border-[var(--border)] rounded-lg bg-[var(--surface)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
+          />
+          <p className="text-xs text-[var(--secondary)] mt-1">
+            Account will be temporarily locked after this many failed attempts
+          </p>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <div className="flex items-start gap-3">
+          <input
+            type="checkbox"
+            name="enableTwoFactor"
+            checked={settings.enableTwoFactor || false}
+            onChange={handleContentChange}
+            className="mt-1 rounded border-[var(--border)] text-[var(--primary)] focus:ring-[var(--ring)]"
+          />
+          <div>
+            <label className="text-sm font-medium text-[var(--foreground)]">
+              Enable Two-Factor Authentication
+            </label>
+            <p className="text-sm text-[var(--secondary)]">
+              Require users to verify their identity with a second factor (coming soon)
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-start gap-3">
+          <input
+            type="checkbox"
+            name="enableAnalytics"
+            checked={settings.enableAnalytics || true}
+            onChange={handleContentChange}
+            className="mt-1 rounded border-[var(--border)] text-[var(--primary)] focus:ring-[var(--ring)]"
+          />
+          <div>
+            <label className="text-sm font-medium text-[var(--foreground)]">
+              Enable Analytics Tracking
+            </label>
+            <p className="text-sm text-[var(--secondary)]">
+              Collect usage analytics and performance metrics
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {settings.enableAnalytics && (
+        <div>
+          <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
+            Analytics Tracking Code
+          </label>
+          <textarea
+            name="trackingCode"
+            value={settings.trackingCode || ''}
+            onChange={(e) => updateSetting('trackingCode', e.target.value)}
+            placeholder="<!-- Google Analytics, Meta Pixel, or other tracking code -->"
+            rows={4}
+            className="w-full px-3 py-2 border border-[var(--border)] rounded-lg bg-[var(--surface)] text-[var(--foreground)] placeholder-[var(--secondary)] resize-none focus:outline-none focus:ring-2 focus:ring-[var(--ring)] font-mono text-sm"
+          />
+          <p className="text-xs text-[var(--secondary)] mt-1">
+            Add your Google Analytics, Meta Pixel, or other tracking scripts here
+          </p>
+        </div>
+      )}
+    </div>
+  );
+
   const renderSectionContent = () => {
     switch (activeSection) {
       case 'general': return renderGeneralSettings();
@@ -472,6 +634,7 @@ export default function SettingsPage() {
       case 'theme': return renderThemeSettings();
       case 'email': return renderEmailSettings();
       case 'notifications': return renderNotificationSettings();
+      case 'security': return renderSecuritySettings();
       default: return renderGeneralSettings();
     }
   };
@@ -507,7 +670,7 @@ export default function SettingsPage() {
 
         <Button
           icon={Save}
-          loading={isLoading}
+          loading={isSaving}
           onClick={handleSaveSettings}
         >
           Save Changes

@@ -4,7 +4,10 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Menu, X, ChevronDown, Home, FileText, Users, Phone, LucideIcon } from 'lucide-react';
+import { 
+  Menu, X, ChevronDown, Home, FileText, Users, Phone, LucideIcon,
+  Rocket, Mail, Info, Maximize, Minimize, Layout
+} from 'lucide-react';
 import { pagesAPI } from '@/lib/api';
 
 interface NavPage {
@@ -13,6 +16,8 @@ interface NavPage {
   slug: string;
   showInMenu: boolean;
   menuOrder: number;
+  icon?: string;
+  template?: string;
 }
 
 interface PublicNavProps {
@@ -23,6 +28,37 @@ export const PublicNav: React.FC<PublicNavProps> = ({ className = '' }) => {
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [pages, setPages] = useState<NavPage[]>([]);
+
+  // Function to get icon component by name
+  const getIconByName = (iconName?: string, template?: string): LucideIcon => {
+    const iconMap: Record<string, LucideIcon> = {
+      'rocket': Rocket,
+      'mail': Mail,
+      'info': Info,
+      'file-text': FileText,
+      'maximize': Maximize,
+      'minimize': Minimize,
+      'layout': Layout,
+      'home': Home,
+      'users': Users,
+      'phone': Phone
+    };
+
+    // Use provided icon name or default based on template
+    const targetIcon = iconName || (() => {
+      switch (template) {
+        case 'landing': return 'rocket';
+        case 'contact': return 'mail';
+        case 'about': return 'info';
+        case 'full-width': return 'maximize';
+        case 'minimal': return 'minimize';
+        case 'visual-builder': return 'layout';
+        default: return 'file-text';
+      }
+    })();
+
+    return iconMap[targetIcon] || FileText;
+  };
 
   useEffect(() => {
     fetchMenuPages();
@@ -95,7 +131,7 @@ export const PublicNav: React.FC<PublicNavProps> = ({ className = '' }) => {
     }
   ];
 
-  const pageNavItems: Array<{title: string, href: string, isActive: boolean}> = (Array.isArray(pages) ? pages : [])
+  const pageNavItems: Array<{title: string, href: string, isActive: boolean, icon: LucideIcon}> = (Array.isArray(pages) ? pages : [])
     .filter((page: any) => {
       console.log('Checking page for menu:', page.title, 'showInMenu:', page.showInMenu);
       return page.showInMenu === true;
@@ -104,7 +140,8 @@ export const PublicNav: React.FC<PublicNavProps> = ({ className = '' }) => {
     .map((page: any) => ({
       title: page.title,
       href: `/pages/${page.slug}`,
-      isActive: pathname === `/pages/${page.slug}`
+      isActive: pathname === `/pages/${page.slug}`,
+      icon: getIconByName(page.icon, page.template)
     }));
 
   console.log('Final pageNavItems:', pageNavItems);
@@ -118,24 +155,26 @@ export const PublicNav: React.FC<PublicNavProps> = ({ className = '' }) => {
   return (
     <nav className={`${className}`}>
       {/* Desktop Navigation */}
-      <div className="hidden md:flex items-center space-x-8">
-        {allNavItems.map((item) => {
-          const Icon = 'icon' in item ? item.icon as LucideIcon : null;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                item.isActive
-                  ? 'text-[var(--primary)] bg-[var(--primary)]/10'
-                  : 'text-[var(--secondary)] hover:text-[var(--primary)] hover:bg-[var(--surface)]'
-              }`}
-            >
-              {Icon && <Icon className="w-4 h-4" />}
-              {item.title}
-            </Link>
-          );
-        })}
+      <div className="hidden md:flex items-center space-x-2 lg:space-x-4 overflow-x-auto max-w-full">
+        <div className="flex items-center space-x-2 lg:space-x-4 min-w-0">
+          {allNavItems.map((item) => {
+            const Icon = 'icon' in item ? item.icon as LucideIcon : null;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex items-center gap-1 lg:gap-2 px-2 lg:px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
+                  item.isActive
+                    ? 'text-[var(--primary)] bg-[var(--primary)]/10'
+                    : 'text-[var(--secondary)] hover:text-[var(--primary)] hover:bg-[var(--surface)]'
+                }`}
+              >
+                {Icon && <Icon className="w-4 h-4 flex-shrink-0" />}
+                <span className="truncate">{item.title}</span>
+              </Link>
+            );
+          })}
+        </div>
       </div>
 
       {/* Mobile Menu Button */}

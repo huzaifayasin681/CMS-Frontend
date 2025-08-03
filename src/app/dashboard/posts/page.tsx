@@ -73,8 +73,9 @@ export default function PostsPage() {
       // Transform API data to match our interface
       const transformedPosts = postsData.map((post: any) => ({
         ...post,
+        id: post._id, // Map MongoDB _id to id field
         author: {
-          id: post.author.id,
+          id: post.author._id || post.author.id,
           username: post.author.username,
           firstName: post.author.firstName,
           lastName: post.author.lastName,
@@ -114,12 +115,31 @@ export default function PostsPage() {
     if (!window.confirm('Are you sure you want to delete this post?')) return;
 
     try {
-      await postsAPI.deletePost(postId);
+      console.log('Attempting to delete post with ID:', postId);
+      console.log('User permissions:', permissions);
+      const response = await postsAPI.deletePost(postId);
+      console.log('Delete response:', response);
       setPosts(posts.filter(post => post.id !== postId));
       showToast.success('Post deleted successfully');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to delete post:', error);
-      showToast.error('Failed to delete post');
+      console.error('Error response:', error.response?.data);
+      console.error('Error status:', error.response?.status);
+      console.error('Error config:', error.config);
+      
+      let errorMessage = 'Failed to delete post';
+      
+      if (error.response?.status === 401) {
+        errorMessage = 'You are not authorized to delete posts. Please log in again.';
+      } else if (error.response?.status === 403) {
+        errorMessage = 'You do not have permission to delete this post.';
+      } else if (error.response?.status === 404) {
+        errorMessage = 'Post not found.';
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      
+      showToast.error(errorMessage);
     }
   };
 

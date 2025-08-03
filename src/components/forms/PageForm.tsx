@@ -1,12 +1,17 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Save, Eye } from 'lucide-react';
+import { 
+  Save, Eye, Paintbrush, FileText, Maximize, Minimize, 
+  Rocket, Mail, Info, Layout 
+} from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { showToast } from '@/components/ui/Toast';
 import { pagesAPI } from '@/lib/api';
+import { useRouter } from 'next/navigation';
+import { useAutoSave } from '@/hooks/useAutoSave';
 
 interface PageFormData {
   title: string;
@@ -14,7 +19,8 @@ interface PageFormData {
   content: string;
   excerpt?: string;
   featuredImage?: string;
-  template: 'default' | 'full-width' | 'minimal' | 'landing' | 'contact' | 'about';
+  template: 'default' | 'full-width' | 'minimal' | 'landing' | 'contact' | 'about' | 'visual-builder';
+  icon?: string;
   status: 'draft' | 'published';
   showInMenu: boolean;
   menuOrder: number;
@@ -42,6 +48,7 @@ interface PageFormProps {
 }
 
 export const PageForm: React.FC<PageFormProps> = ({ pageId, onSave, onCancel }) => {
+  const router = useRouter();
   const [formData, setFormData] = useState<PageFormData>({
     title: '',
     slug: '',
@@ -49,6 +56,7 @@ export const PageForm: React.FC<PageFormProps> = ({ pageId, onSave, onCancel }) 
     excerpt: '',
     featuredImage: '',
     template: 'default',
+    icon: '',
     status: 'draft',
     showInMenu: true,
     menuOrder: 0,
@@ -73,6 +81,36 @@ export const PageForm: React.FC<PageFormProps> = ({ pageId, onSave, onCancel }) 
   const [isSaving, setIsSaving] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
 
+  // Auto-save functionality for pages
+  const { isAutoSaving, lastSaved } = useAutoSave({
+    data: formData,
+    onSave: async (data) => {
+      // Only auto-save if we have meaningful content and it's not a visual-builder page
+      if ((!data.title.trim() && !data.content.trim()) || data.template === 'visual-builder') return;
+      
+      try {
+        if (pageId && pageId !== 'undefined' && pageId.trim()) {
+          await pagesAPI.updatePage(pageId, { ...data, status: 'draft' });
+        } else {
+          // For new pages, only auto-save if we have at least a title
+          if (!data.title.trim()) return;
+          
+          const response = await pagesAPI.createPage({ ...data, status: 'draft' });
+          // Update the pageId if this is a new page
+          if (response.data?.page?.id || response.data?.page?._id) {
+            const newPageId = response.data.page.id || response.data.page._id;
+            window.history.replaceState(null, '', `/dashboard/pages/${newPageId}/edit`);
+          }
+        }
+      } catch (error) {
+        console.error('Auto-save failed:', error);
+        throw error;
+      }
+    },
+    delay: 3000,
+    enabled: true
+  });
+
   useEffect(() => {
     if (pageId && pageId !== 'undefined' && pageId.trim()) {
       fetchPage();
@@ -84,8 +122,8 @@ export const PageForm: React.FC<PageFormProps> = ({ pageId, onSave, onCancel }) 
     if (formData.title && (!pageId || pageId === 'undefined' || !pageId.trim())) {
       const slug = formData.title
         .toLowerCase()
-        .replace(/[^a-z0-9\\s-]/g, '')
-        .replace(/\\s+/g, '-')
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
         .replace(/-+/g, '-')
         .trim();
       setFormData(prev => ({ ...prev, slug }));
@@ -110,6 +148,7 @@ export const PageForm: React.FC<PageFormProps> = ({ pageId, onSave, onCancel }) 
         excerpt: page.excerpt || '',
         featuredImage: page.featuredImage || '',
         template: page.template || 'default',
+        icon: page.icon || '',
         status: page.status || 'draft',
         showInMenu: page.showInMenu !== undefined ? page.showInMenu : true,
         menuOrder: page.menuOrder || 0,
@@ -144,10 +183,22 @@ export const PageForm: React.FC<PageFormProps> = ({ pageId, onSave, onCancel }) 
   // Handle template change with content auto-fill
   const handleTemplateChange = (newTemplate: string) => {
     const wasEmpty = !formData.content.trim();
+    const defaultIcon = (() => {
+      switch (newTemplate) {
+        case 'landing': return 'rocket';
+        case 'contact': return 'mail';
+        case 'about': return 'info';
+        case 'full-width': return 'maximize';
+        case 'minimal': return 'minimize';
+        case 'visual-builder': return 'layout';
+        default: return 'file-text';
+      }
+    })();
     
     setFormData(prev => ({
       ...prev,
       template: newTemplate as any,
+      icon: defaultIcon,
       // Auto-fill content only if current content is empty
       content: wasEmpty ? getContentPlaceholderForTemplate(newTemplate) : prev.content
     }));
@@ -236,13 +287,45 @@ Use short paragraphs and avoid complex layouts for the best minimal experience.`
     }
   };
 
+  const handleOpenVisualBuilder = async () => {
+    if (!pageId || pageId === 'undefined' || !pageId.trim()) {
+      // Save the page first if it's new
+      try {
+        setIsSaving(true);
+        const pageData = {
+          ...formData,
+          template: 'visual-builder',
+          status: 'draft',
+          parentPage: formData.parentPage && formData.parentPage.trim() ? formData.parentPage : null,
+        };
+        
+        const response = await pagesAPI.createPage(pageData);
+        const newPageId = response.data.page?.id || response.data.page?._id || response.data.id || response.data._id;
+        
+        if (newPageId) {
+          router.push(`/dashboard/pages/${newPageId}/visual-builder`);
+        } else {
+          showToast.error('Failed to get page ID after creation');
+        }
+      } catch (error) {
+        console.error('Failed to create page:', error);
+        showToast.error('Failed to create page');
+      } finally {
+        setIsSaving(false);
+      }
+    } else {
+      // Navigate to visual builder for existing page
+      router.push(`/dashboard/pages/${pageId}/visual-builder`);
+    }
+  };
+
   const handleSave = async (status: 'draft' | 'published') => {
     if (!formData.title.trim()) {
       showToast.error('Title is required');
       return;
     }
 
-    if (!formData.content.trim()) {
+    if (formData.template !== 'visual-builder' && !formData.content.trim()) {
       showToast.error('Content is required');
       return;
     }
@@ -282,12 +365,13 @@ Use short paragraphs and avoid complex layouts for the best minimal experience.`
   };
 
   const templates = [
-    { value: 'default', label: 'Default', description: 'Standard page layout' },
-    { value: 'full-width', label: 'Full Width', description: 'Full width layout without sidebar' },
-    { value: 'minimal', label: 'Minimal', description: 'Clean, minimal design' },
-    { value: 'landing', label: 'Landing Page', description: 'Marketing/promotional page layout' },
-    { value: 'contact', label: 'Contact', description: 'Contact form and information layout' },
-    { value: 'about', label: 'About', description: 'Company/team information layout' }
+    { value: 'default', label: 'Default', description: 'Standard page layout', icon: FileText },
+    { value: 'full-width', label: 'Full Width', description: 'Full width layout without sidebar', icon: Maximize },
+    { value: 'minimal', label: 'Minimal', description: 'Clean, minimal design', icon: Minimize },
+    { value: 'landing', label: 'Landing Page', description: 'Marketing/promotional page layout', icon: Rocket },
+    { value: 'contact', label: 'Contact', description: 'Contact form and information layout', icon: Mail },
+    { value: 'about', label: 'About', description: 'Company/team information layout', icon: Info },
+    { value: 'visual-builder', label: 'Visual Builder', description: 'Drag & drop page builder', icon: Layout }
   ];
 
   // Template-specific content helpers
@@ -542,6 +626,45 @@ Use short paragraphs and avoid complex layouts for the best minimal experience.`
           </div>
         );
 
+      case 'visual-builder':
+        return (
+          <div className="space-y-4">
+            <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-6">
+              <div className="flex items-start gap-4">
+                <div className="text-4xl">🎨</div>
+                <div className="flex-1">
+                  <h4 className="text-lg font-semibold text-purple-900 mb-2">Visual Page Builder</h4>
+                  <p className="text-sm text-purple-700 mb-4">
+                    Create stunning pages with our drag & drop visual builder. No coding required!
+                  </p>
+                  <ul className="text-xs text-purple-600 space-y-1 mb-4">
+                    <li>• Drag & drop components like hero sections, testimonials, and pricing cards</li>
+                    <li>• Live preview with responsive design tools</li>
+                    <li>• Pre-built templates and custom styling options</li>
+                    <li>• SEO-friendly and mobile-optimized output</li>
+                  </ul>
+                  <Button
+                    onClick={handleOpenVisualBuilder}
+                    loading={isSaving}
+                    icon={Paintbrush}
+                    iconPosition="left"
+                  >
+                    {pageId && pageId !== 'undefined' && pageId.trim() ? 'Open Visual Builder' : 'Create & Open Visual Builder'}
+                  </Button>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <h4 className="text-sm font-medium text-amber-900 mb-2">📝 Note</h4>
+              <p className="text-xs text-amber-700">
+                When using the Visual Builder, the content field above will be ignored. 
+                All page content will be managed through the visual builder interface.
+              </p>
+            </div>
+          </div>
+        );
+
       default:
         return null;
     }
@@ -559,9 +682,25 @@ Use short paragraphs and avoid complex layouts for the best minimal experience.`
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-[var(--foreground)]">
-          {(pageId && pageId !== 'undefined' && pageId.trim()) ? 'Edit Page' : 'Create New Page'}
-        </h1>
+        <div>
+          <h1 className="text-2xl font-bold text-[var(--foreground)]">
+            {(pageId && pageId !== 'undefined' && pageId.trim()) ? 'Edit Page' : 'Create New Page'}
+          </h1>
+          <div className="flex items-center gap-4 mt-2 text-sm text-[var(--secondary)]">
+            {isAutoSaving && (
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-[var(--primary)] rounded-full animate-pulse"></div>
+                Auto-saving...
+              </div>
+            )}
+            {lastSaved && !isAutoSaving && (
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                Saved {lastSaved.toLocaleTimeString()}
+              </div>
+            )}
+          </div>
+        </div>
         <div className="flex items-center gap-3">
           <Button
             variant="outline"
@@ -615,32 +754,34 @@ Use short paragraphs and avoid complex layouts for the best minimal experience.`
                 />
               </div>
 
-              {/* Content - Template Specific */}
-              <div>
-                <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
-                  Content
-                </label>
-                {showPreview ? (
-                  <div 
-                    className="min-h-[300px] p-4 border border-[var(--border)] rounded-lg bg-[var(--surface)] prose max-w-none"
-                    dangerouslySetInnerHTML={{ __html: formData.content }}
-                  />
-                ) : (
-                  <textarea
-                    value={formData.content}
-                    onChange={(e) => handleInputChange('content', e.target.value)}
-                    placeholder={getContentPlaceholder()}
-                    rows={getContentRows()}
-                    className="w-full px-3 py-2 border border-[var(--border)] rounded-lg bg-[var(--background)] text-[var(--foreground)] placeholder-[var(--secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)] focus:border-transparent resize-vertical font-mono text-sm"
-                    required
-                  />
-                )}
-                {getContentHint() && (
-                  <p className="text-xs text-[var(--secondary)] mt-1">
-                    {getContentHint()}
-                  </p>
-                )}
-              </div>
+              {/* Content - Template Specific (hidden for visual-builder) */}
+              {formData.template !== 'visual-builder' && (
+                <div>
+                  <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
+                    Content
+                  </label>
+                  {showPreview ? (
+                    <div 
+                      className="min-h-[300px] p-4 border border-[var(--border)] rounded-lg bg-[var(--surface)] prose max-w-none"
+                      dangerouslySetInnerHTML={{ __html: formData.content }}
+                    />
+                  ) : (
+                    <textarea
+                      value={formData.content}
+                      onChange={(e) => handleInputChange('content', e.target.value)}
+                      placeholder={getContentPlaceholder()}
+                      rows={getContentRows()}
+                      className="w-full px-3 py-2 border border-[var(--border)] rounded-lg bg-[var(--background)] text-[var(--foreground)] placeholder-[var(--secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)] focus:border-transparent resize-vertical font-mono text-sm"
+                      required
+                    />
+                  )}
+                  {getContentHint() && (
+                    <p className="text-xs text-[var(--secondary)] mt-1">
+                      {getContentHint()}
+                    </p>
+                  )}
+                </div>
+              )}
 
               {/* Template-Specific Fields */}
               {renderTemplateSpecificFields()}
@@ -697,21 +838,48 @@ Use short paragraphs and avoid complex layouts for the best minimal experience.`
             <div className="space-y-4">
               {/* Template */}
               <div>
-                <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
-                  Template
+                <label className="block text-sm font-medium text-[var(--foreground)] mb-4">
+                  Choose Template
                 </label>
-                <select
-                  value={formData.template}
-                  onChange={(e) => handleTemplateChange(e.target.value)}
-                  className="w-full px-3 py-2 border border-[var(--border)] rounded-lg bg-[var(--background)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)] focus:border-transparent"
-                >
-                  {templates.map(template => (
-                    <option key={template.value} value={template.value}>
-                      {template.label}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-[var(--secondary)] mt-1">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {templates.map(template => {
+                    const Icon = template.icon;
+                    const isSelected = formData.template === template.value;
+                    return (
+                      <button
+                        key={template.value}
+                        type="button"
+                        onClick={() => handleTemplateChange(template.value)}
+                        className={`p-4 border-2 rounded-lg text-left transition-all hover:border-[var(--primary)]/50 ${
+                          isSelected
+                            ? 'border-[var(--primary)] bg-[var(--primary)]/5'
+                            : 'border-[var(--border)] hover:bg-[var(--surface)]'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className={`p-2 rounded-lg ${
+                            isSelected 
+                              ? 'bg-[var(--primary)] text-white' 
+                              : 'bg-[var(--surface)] text-[var(--secondary)]'
+                          }`}>
+                            <Icon size={20} />
+                          </div>
+                          <div className="flex-1">
+                            <h4 className={`font-medium text-sm ${
+                              isSelected ? 'text-[var(--primary)]' : 'text-[var(--foreground)]'
+                            }`}>
+                              {template.label}
+                            </h4>
+                            <p className="text-xs text-[var(--secondary)] mt-1">
+                              {template.description}
+                            </p>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-[var(--secondary)] mt-2">
                   {templates.find(t => t.value === formData.template)?.description}
                 </p>
               </div>

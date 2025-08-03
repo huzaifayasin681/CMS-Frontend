@@ -55,8 +55,13 @@ export default function RegisterPage() {
   };
   
   const validateForm = () => {
-    if (!formData.username || formData.username.length < 3) {
-      showToast.error('Username must be at least 3 characters long');
+    if (!formData.username || formData.username.length < 3 || formData.username.length > 30) {
+      showToast.error('Username must be between 3 and 30 characters long');
+      return false;
+    }
+    
+    if (!/^[a-zA-Z0-9_]+$/.test(formData.username)) {
+      showToast.error('Username can only contain letters, numbers, and underscores');
       return false;
     }
     
@@ -92,8 +97,9 @@ export default function RegisterPage() {
         password: formData.password,
         role: formData.role
       });
-      showToast.success('Registration successful! Welcome to Content Hub.');
-      router.push('/dashboard');
+      
+      showToast.success('Registration successful! Please check your email to verify your account.');
+      router.push(`/verify-email?email=${encodeURIComponent(formData.email)}&role=${formData.role}`);
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || 'Registration failed. Please try again.';
       showToast.error(errorMessage);
@@ -163,7 +169,7 @@ export default function RegisterPage() {
               placeholder="Choose a username"
               required
               autoComplete="username"
-              hint="At least 3 characters, letters, numbers, and underscores only"
+              hint="3-30 characters, letters, numbers, and underscores only"
             />
             
             <Input
@@ -181,18 +187,17 @@ export default function RegisterPage() {
               <label className="block text-sm font-medium text-[var(--foreground)]">
                 Account Type
               </label>
-              <select
-                name="role"
-                value={formData.role}
-                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                className="w-full px-3 py-2 border border-[var(--border)] rounded-lg bg-[var(--background)] text-[var(--foreground)] focus:ring-2 focus:ring-[var(--ring)] focus:border-transparent transition-colors"
-              >
-                <option value="viewer">Viewer - View content only</option>
-                <option value="editor">Editor - Create and edit content</option>
-                <option value="admin">Admin - Full system access</option>
-              </select>
+              <div className="w-full px-3 py-2 border border-[var(--border)] rounded-lg bg-[var(--surface)] text-[var(--foreground)]">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                  <span className="font-medium">Viewer Account</span>
+                </div>
+                <p className="text-xs text-[var(--secondary)] mt-1">
+                  Browse and view content on the platform
+                </p>
+              </div>
               <p className="text-xs text-[var(--secondary)]">
-                Choose your account type. You can request role changes later.
+                Need editor or admin access? Contact your administrator for an invitation.
               </p>
             </div>
             

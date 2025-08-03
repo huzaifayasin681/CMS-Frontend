@@ -5,35 +5,9 @@ import { motion } from 'framer-motion';
 import { Calendar, User, Eye, ArrowRight, Check, Star } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { PageTemplateProps } from '@/types/page';
 
-interface PageData {
-  id: string;
-  title: string;
-  slug: string;
-  content: string;
-  excerpt?: string;
-  featuredImage?: string;
-  author: {
-    id: string;
-    username: string;
-    firstName?: string;
-    lastName?: string;
-    avatar?: string;
-  };
-  publishedAt: string;
-  updatedAt: string;
-  views: number;
-  status: 'published' | 'draft';
-  template: string;
-  seoTitle?: string;
-  seoDescription?: string;
-}
-
-interface LandingTemplateProps {
-  page: PageData;
-}
-
-export const LandingTemplate: React.FC<LandingTemplateProps> = ({ page }) => {
+export const LandingTemplate: React.FC<PageTemplateProps> = ({ page }) => {
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -71,7 +45,7 @@ export const LandingTemplate: React.FC<LandingTemplateProps> = ({ page }) => {
             transition={{ delay: 0.3 }}
           >
             <Button size="lg" icon={ArrowRight} iconPosition="right" className="text-lg px-8 py-4">
-              Get Started
+              {page.ctaText || 'Get Started'}
             </Button>
             <Button variant="outline" size="lg" className="text-lg px-8 py-4">
               Learn More
@@ -191,7 +165,7 @@ export const LandingTemplate: React.FC<LandingTemplateProps> = ({ page }) => {
               size="lg" 
               className="text-lg px-8 py-4 bg-white text-[var(--primary)] hover:bg-blue-50"
             >
-              Start Free Trial
+              {page.ctaText || 'Start Free Trial'}
             </Button>
             <Button 
               variant="outline" 

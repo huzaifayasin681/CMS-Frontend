@@ -2,12 +2,18 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Save, Eye, Upload, X, Plus } from 'lucide-react';
+import { Save, Eye, Upload, X, Plus, FileText, Clock, BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { showToast } from '@/components/ui/Toast';
+import { RichTextEditor } from '@/components/ui/RichTextEditor';
+import { ContentTemplates } from '@/components/ui/ContentTemplates';
+import { ContentPreview } from '@/components/ui/ContentPreview';
+import { ImageUpload } from '@/components/ui/ImageUpload';
 import { postsAPI } from '@/lib/api';
+import { useAutoSave } from '@/hooks/useAutoSave';
+import { getContentStats } from '@/utils/readingTime';
 
 interface PostFormData {
   title: string;
@@ -46,6 +52,9 @@ export const PostForm: React.FC<PostFormProps> = ({ postId, onSave, onCancel }) 
   const [isSaving, setIsSaving] = useState(false);
   const [tagInput, setTagInput] = useState('');
   const [showPreview, setShowPreview] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [showImageUpload, setShowImageUpload] = useState(false);
+  const [contentStats, setContentStats] = useState(getContentStats(''));
 
   useEffect(() => {
     if (postId) {
@@ -65,6 +74,41 @@ export const PostForm: React.FC<PostFormProps> = ({ postId, onSave, onCancel }) 
       setFormData(prev => ({ ...prev, slug }));
     }
   }, [formData.title, postId]);
+
+  // Update content stats when content changes
+  useEffect(() => {
+    setContentStats(getContentStats(formData.content));
+  }, [formData.content]);
+
+  // Auto-save functionality
+  const { isAutoSaving, lastSaved, saveNow } = useAutoSave({
+    data: formData,
+    onSave: async (data) => {
+      // Only auto-save if we have meaningful content
+      if (!data.title.trim() && !data.content.trim()) return;
+      
+      try {
+        if (postId) {
+          await postsAPI.updatePost(postId, { ...data, status: 'draft' });
+        } else {
+          // For new posts, only auto-save if we have at least a title
+          if (!data.title.trim()) return;
+          
+          const response = await postsAPI.createPost({ ...data, status: 'draft' });
+          // Update the postId if this is a new post
+          if (response.data?.post?.id || response.data?.post?._id) {
+            const newPostId = response.data.post.id || response.data.post._id;
+            window.history.replaceState(null, '', `/dashboard/posts/${newPostId}/edit`);
+          }
+        }
+      } catch (error) {
+        console.error('Auto-save failed:', error);
+        throw error;
+      }
+    },
+    delay: 3000,
+    enabled: true
+  });
 
   const fetchPost = async () => {
     if (!postId) return;
@@ -86,6 +130,17 @@ export const PostForm: React.FC<PostFormProps> = ({ postId, onSave, onCancel }) 
         seoTitle: post.seoTitle || '',
         seoDescription: post.seoDescription || ''
       });
+      
+      // If this is a draft post with content history, try to restore latest content
+      if (post.status === 'draft' && post.contentHistory && post.contentHistory.length > 0) {
+        const latestDraft = post.contentHistory[post.contentHistory.length - 1];
+        if (latestDraft && latestDraft.content && latestDraft.content.trim()) {
+          setFormData(prev => ({
+            ...prev,
+            content: latestDraft.content
+          }));
+        }
+      }
     } catch (error) {
       console.error('Failed to fetch post:', error);
       showToast.error('Failed to load post');
@@ -176,19 +231,48 @@ export const PostForm: React.FC<PostFormProps> = ({ postId, onSave, onCancel }) 
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-[var(--foreground)]">
-          {postId ? 'Edit Post' : 'Create New Post'}
-        </h1>
+        <div>
+          <h1 className="text-2xl font-bold text-[var(--foreground)]">
+            {postId ? 'Edit Post' : 'Create New Post'}
+          </h1>
+          <div className="flex items-center gap-4 mt-2 text-sm text-[var(--secondary)]">
+            {isAutoSaving && (
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-[var(--primary)] rounded-full animate-pulse"></div>
+                Auto-saving...
+              </div>
+            )}
+            {lastSaved && !isAutoSaving && (
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                Saved {lastSaved.toLocaleTimeString()}
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <BarChart3 size={14} />
+              {contentStats.words} words • {contentStats.readingTime.text}
+            </div>
+          </div>
+        </div>
         <div className="flex items-center gap-3">
           <Button
             variant="outline"
-            onClick={() => setShowPreview(!showPreview)}
-            icon={Eye}
+            onClick={() => setShowTemplates(true)}
+            icon={FileText}
+            size="sm"
           >
-            {showPreview ? 'Edit' : 'Preview'}
+            Templates
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setShowPreview(true)}
+            icon={Eye}
+            size="sm"
+          >
+            Preview
           </Button>
           {onCancel && (
-            <Button variant="outline" onClick={onCancel}>
+            <Button variant="outline" onClick={onCancel} size="sm">
               Cancel
             </Button>
           )}
@@ -237,21 +321,14 @@ export const PostForm: React.FC<PostFormProps> = ({ postId, onSave, onCancel }) 
                 <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
                   Content
                 </label>
-                {showPreview ? (
-                  <div 
-                    className="min-h-[300px] p-4 border border-[var(--border)] rounded-lg bg-[var(--surface)] prose max-w-none"
-                    dangerouslySetInnerHTML={{ __html: formData.content }}
-                  />
-                ) : (
-                  <textarea
-                    value={formData.content}
-                    onChange={(e) => handleInputChange('content', e.target.value)}
-                    placeholder="Write your post content here..."
-                    rows={15}
-                    className="w-full px-3 py-2 border border-[var(--border)] rounded-lg bg-[var(--background)] text-[var(--foreground)] placeholder-[var(--secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)] focus:border-transparent resize-vertical font-mono text-sm"
-                    required
-                  />
-                )}
+                <RichTextEditor
+                  content={formData.content}
+                  onChange={(content) => handleInputChange('content', content)}
+                  placeholder="Start writing your post content..."
+                  showCharacterCount={true}
+                  maxCharacters={10000}
+                  className="min-h-[400px]"
+                />
               </div>
             </div>
           </Card>
@@ -367,22 +444,71 @@ export const PostForm: React.FC<PostFormProps> = ({ postId, onSave, onCancel }) 
               Featured Image
             </h3>
             <div className="space-y-3">
-              <Input
-                label="Image URL"
-                value={formData.featuredImage}
-                onChange={(e) => handleInputChange('featuredImage', e.target.value)}
-                placeholder="https://example.com/image.jpg"
-              />
-              {formData.featuredImage && (
-                <img
-                  src={formData.featuredImage}
-                  alt="Featured"
-                  className="w-full h-32 object-cover rounded"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = 'none';
-                  }}
+              <div className="flex gap-2">
+                <Input
+                  label="Image URL"
+                  value={formData.featuredImage}
+                  onChange={(e) => handleInputChange('featuredImage', e.target.value)}
+                  placeholder="https://example.com/image.jpg"
+                  className="flex-1"
                 />
+                <div className="flex items-end">
+                  <Button
+                    variant="outline"
+                    icon={Upload}
+                    size="sm"
+                    onClick={() => setShowImageUpload(true)}
+                  >
+                    Browse
+                  </Button>
+                </div>
+              </div>
+              {formData.featuredImage && (
+                <div className="relative">
+                  <img
+                    src={formData.featuredImage}
+                    alt="Featured"
+                    className="w-full h-32 object-cover rounded"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
+                  <button
+                    onClick={() => handleInputChange('featuredImage', '')}
+                    className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
               )}
+            </div>
+          </Card>
+
+          {/* Content Stats */}
+          <Card padding="lg">
+            <h3 className="text-lg font-semibold text-[var(--foreground)] mb-4">
+              Content Statistics
+            </h3>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-[var(--secondary)]">Words:</span>
+                <span className="font-medium">{contentStats.words}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-[var(--secondary)]">Characters:</span>
+                <span className="font-medium">{contentStats.characters}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-[var(--secondary)]">Paragraphs:</span>
+                <span className="font-medium">{contentStats.paragraphs}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-[var(--secondary)]">Reading Time:</span>
+                <span className="font-medium flex items-center gap-1">
+                  <Clock size={14} />
+                  {contentStats.readingTime.text}
+                </span>
+              </div>
             </div>
           </Card>
 
@@ -418,6 +544,34 @@ export const PostForm: React.FC<PostFormProps> = ({ postId, onSave, onCancel }) 
           </Card>
         </div>
       </div>
+
+      {/* Content Templates Modal */}
+      <ContentTemplates
+        isOpen={showTemplates}
+        onClose={() => setShowTemplates(false)}
+        onSelectTemplate={(content) => handleInputChange('content', content)}
+      />
+
+      {/* Content Preview Modal */}
+      <ContentPreview
+        isOpen={showPreview}
+        onClose={() => setShowPreview(false)}
+        title={formData.title}
+        content={formData.content}
+        featuredImage={formData.featuredImage}
+        category={formData.category}
+        tags={formData.tags}
+      />
+
+      {/* Image Upload Modal */}
+      <ImageUpload
+        isOpen={showImageUpload}
+        onClose={() => setShowImageUpload(false)}
+        onImageSelect={(url) => {
+          handleInputChange('featuredImage', url);
+          setShowImageUpload(false);
+        }}
+      />
     </div>
   );
 };

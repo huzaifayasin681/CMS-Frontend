@@ -11,6 +11,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   iconPosition?: 'left' | 'right';
   loading?: boolean;
   fullWidth?: boolean;
+  className?: string;
 }
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({

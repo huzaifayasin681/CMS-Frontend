@@ -1,23 +1,16 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { 
-  ArrowRight, 
-  Calendar, 
-  Clock, 
-  User, 
-  Eye,
-  TrendingUp,
-  BookOpen,
-  Sparkles
-} from 'lucide-react';
-import { Header } from '@/components/layout/Header';
+import { ArrowRight, Calendar, User, Clock, Eye, Star, TrendingUp, AlertCircle, X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { LoadingSkeleton } from '@/components/ui/LoadingSpinner';
-import { postsAPI, pagesAPI } from '@/lib/api';
+import { Header } from '@/components/layout/Header';
+import { postsAPI } from '@/lib/api';
+import Link from 'next/link';
+import { formatDistanceToNow } from 'date-fns';
+import { useSearchParams } from 'next/navigation';
 
 interface FeaturedPost {
   id: string;
@@ -41,15 +34,28 @@ interface RecentPost {
   slug: string;
   excerpt: string;
   featuredImage?: string;
+  author: {
+    username: string;
+    avatar?: string;
+  };
   category: string;
   publishedAt: string;
   readTime: number;
+  views: number;
 }
 
 export const PublicHomePage: React.FC = () => {
+  const searchParams = useSearchParams();
   const [featuredPosts, setFeaturedPosts] = useState<FeaturedPost[]>([]);
   const [recentPosts, setRecentPosts] = useState<RecentPost[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [showAccessDenied, setShowAccessDenied] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get('error') === 'dashboard_access_denied') {
+      setShowAccessDenied(true);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     fetchHomeContent();
@@ -59,478 +65,359 @@ export const PublicHomePage: React.FC = () => {
     setIsLoading(true);
     try {
       // Fetch recent posts for both featured and recent sections
-      const [postsResponse] = await Promise.all([
-        postsAPI.getPosts({ limit: 9, status: 'published' })
-      ]);
-      
+      const postsResponse = await postsAPI.getPosts({ limit: 9, status: 'published' });
       const allPosts = postsResponse.data.posts || [];
-      
+
       // Use first 3 posts as featured, remaining as recent
       setFeaturedPosts(allPosts.slice(0, 3));
       setRecentPosts(allPosts.slice(3, 9));
     } catch (error) {
       console.error('Failed to fetch home content:', error);
-      
-      // Fallback to mock data if API fails
-      setFeaturedPosts([
-        {
-          id: '1',
-          title: 'The Future of Web Development: Trends to Watch in 2024',
-          slug: 'future-web-development-trends-2024',
-          excerpt: 'Discover the latest trends shaping the future of web development, from AI-powered tools to advanced framework capabilities.',
-          featuredImage: 'https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=800',
-          author: {
-            username: 'Sarah Chen',
-            avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b647?w=100'
-          },
-          category: 'Technology',
-          publishedAt: '2024-01-20T10:00:00Z',
-          readTime: 8,
-          views: 2847
-        },
-        {
-          id: '2',
-          title: 'Building Sustainable Design Systems at Scale',
-          slug: 'sustainable-design-systems-scale',
-          excerpt: 'Learn how to create and maintain design systems that scale with your organization while keeping consistency and efficiency.',
-          featuredImage: 'https://images.unsplash.com/photo-1586281380349-632531db7ed4?w=800',
-          author: {
-            username: 'Alex Rodriguez',
-            avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100'
-          },
-          category: 'Design',
-          publishedAt: '2024-01-18T14:30:00Z',
-          readTime: 10,
-          views: 1923
-        },
-        {
-          id: '3',
-          title: 'From Startup to Scale: Lessons in Product Management',
-          slug: 'startup-scale-product-management-lessons',
-          excerpt: 'Essential insights from scaling products from MVP to enterprise level, including common pitfalls and success strategies.',
-          featuredImage: 'https://images.unsplash.com/photo-1551434678-e076c223a692?w=800',
-          author: {
-            username: 'Michael Torres',
-            avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100'
-          },
-          category: 'Business',
-          publishedAt: '2024-01-15T09:15:00Z',
-          readTime: 12,
-          views: 1456
-        }
-      ]);
-
-      setRecentPosts([
-        {
-          id: '4',
-          title: 'Advanced React Patterns for Modern Applications',
-          slug: 'advanced-react-patterns-modern-apps',
-          excerpt: 'Explore sophisticated React patterns that will elevate your component architecture.',
-          featuredImage: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=400',
-          category: 'Development',
-          publishedAt: '2024-01-14T16:20:00Z',
-          readTime: 7
-        },
-        {
-          id: '5',
-          title: 'The Art of Technical Writing',
-          slug: 'art-technical-writing',
-          excerpt: 'Master the skills needed to create clear, effective technical documentation.',
-          featuredImage: 'https://images.unsplash.com/photo-1456324504439-367cee3b3c32?w=400',
-          category: 'Writing',
-          publishedAt: '2024-01-12T11:45:00Z',
-          readTime: 6
-        },
-        {
-          id: '6',
-          title: 'Understanding User Experience Psychology',
-          slug: 'understanding-ux-psychology',
-          excerpt: 'Dive deep into the psychological principles that drive effective user experiences.',
-          featuredImage: 'https://images.unsplash.com/photo-1559136555-9303baea8ebd?w=400',
-          category: 'UX Design',
-          publishedAt: '2024-01-10T13:30:00Z',
-          readTime: 9
-        },
-        {
-          id: '7',
-          title: 'API Design Best Practices',
-          slug: 'api-design-best-practices',
-          excerpt: 'Learn how to design APIs that are intuitive, scalable, and developer-friendly.',
-          featuredImage: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400',
-          category: 'Development',
-          publishedAt: '2024-01-08T10:15:00Z',
-          readTime: 8
-        },
-        {
-          id: '8',
-          title: 'Creative Problem Solving in Tech',
-          slug: 'creative-problem-solving-tech',
-          excerpt: 'Techniques for approaching complex technical challenges with creative solutions.',
-          featuredImage: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=400',
-          category: 'Innovation',
-          publishedAt: '2024-01-05T15:00:00Z',
-          readTime: 5
-        },
-        {
-          id: '9',
-          title: 'The Evolution of Frontend Frameworks',
-          slug: 'evolution-frontend-frameworks',
-          excerpt: 'A comprehensive look at how frontend frameworks have evolved and where they\'re heading.',
-          featuredImage: 'https://images.unsplash.com/photo-1593720213428-28a5b9e94613?w=400',
-          category: 'Technology',
-          publishedAt: '2024-01-03T12:00:00Z',
-          readTime: 11
-        }
-      ]);
+      setFeaturedPosts([]);
+      setRecentPosts([]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+  const calculateReadingTime = (content: string): number => {
+    const wordsPerMinute = 200;
+    const wordCount = content.split(' ').length;
+    return Math.ceil(wordCount / wordsPerMinute);
   };
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-[var(--background)]">
+      {/* Header with Navigation */}
       <Header />
+
+      {/* Access Denied Alert */}
+      {showAccessDenied && (
+        <motion.div
+          initial={{ opacity: 0, y: -50 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-yellow-50 border-l-4 border-yellow-400 p-4 fixed top-16 left-0 right-0 z-50 shadow-lg"
+        >
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <AlertCircle className="w-5 h-5 text-yellow-400 mr-3" />
+                <div>
+                  <p className="text-sm font-medium text-yellow-800">
+                    Dashboard Access Restricted
+                  </p>
+                  <p className="text-sm text-yellow-700 mt-1">
+                    Viewer accounts don't have access to the dashboard. Contact an administrator for elevated permissions.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowAccessDenied(false)}
+                className="text-yellow-400 hover:text-yellow-600 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      )}
       
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-[var(--primary)]/5 via-[var(--accent)]/5 to-[var(--secondary)]/5">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+      <section className="relative py-20 bg-gradient-to-br from-[var(--primary)]/10 to-[var(--accent)]/10">
+        <div className="container mx-auto px-6">
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            className="text-center mb-16"
+            className="text-center max-w-4xl mx-auto"
           >
-            <motion.h1 
-              className="text-4xl sm:text-5xl lg:text-6xl font-bold text-[var(--foreground)] mb-6"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-            >
-              Welcome to Our
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[var(--primary)] to-[var(--accent)] block">
-                Digital Space
+            <h1 className="text-5xl md:text-6xl font-bold text-[var(--foreground)] mb-6">
+              Welcome to{' '}
+              <span className="bg-gradient-to-r from-[var(--primary)] to-[var(--accent)] bg-clip-text text-transparent">
+                Content Hub
               </span>
-            </motion.h1>
-            
-            <motion.p 
-              className="text-xl text-[var(--secondary)] mb-8 max-w-3xl mx-auto leading-relaxed"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-            >
-              Discover insights, tutorials, and stories from our community. 
-              Stay updated with the latest trends in technology, design, and innovation.
-            </motion.p>
-            
-            <motion.div 
-              className="flex flex-col sm:flex-row gap-4 justify-center"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.6 }}
-            >
+            </h1>
+            <p className="text-xl text-[var(--secondary)] mb-8 leading-relaxed">
+              Discover insightful articles, tutorials, and stories from our community of writers and creators.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/blog">
-                <Button size="lg" icon={BookOpen} iconPosition="right" className="text-lg px-8 py-4">
+                <Button size="lg" icon={ArrowRight} iconPosition="right">
                   Explore Articles
                 </Button>
               </Link>
-              
               <Link href="/pages/about">
-                <Button variant="outline" size="lg" className="text-lg px-8 py-4">
+                <Button size="lg" variant="outline">
                   Learn More
                 </Button>
               </Link>
-            </motion.div>
+            </div>
           </motion.div>
         </div>
       </section>
 
-      {/* Featured Posts */}
-      <section className="py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      {/* Featured Posts Section */}
+      <section className="py-16 bg-[var(--background)]">
+        <div className="container mx-auto px-6">
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            viewport={{ once: true }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
             className="text-center mb-12"
           >
-            <div className="flex items-center justify-center gap-2 mb-4">
-              <Sparkles className="w-6 h-6 text-[var(--primary)]" />
-              <h2 className="text-3xl font-bold text-[var(--foreground)]">
-                Featured Articles
-              </h2>
-            </div>
-            <p className="text-lg text-[var(--secondary)] max-w-2xl mx-auto">
-              Our most popular and insightful content, curated just for you.
+            <h2 className="text-3xl font-bold text-[var(--foreground)] mb-4">
+              Featured Articles
+            </h2>
+            <p className="text-[var(--secondary)] max-w-2xl mx-auto">
+              Handpicked content that showcases the best insights and stories from our community.
             </p>
           </motion.div>
-          
-          {isLoading ? (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <Card key={i} padding="none" className="overflow-hidden">
-                  <div className="w-full h-48 skeleton"></div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {isLoading ? (
+              Array.from({ length: 3 }).map((_, index) => (
+                <Card key={index} padding="none" className="overflow-hidden">
+                  <div className="aspect-video w-full skeleton"></div>
                   <div className="p-6">
                     <LoadingSkeleton lines={4} />
                   </div>
                 </Card>
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {featuredPosts.map((post, index) => (
+              ))
+            ) : featuredPosts.length > 0 ? (
+              featuredPosts.map((post, index) => (
                 <motion.div
                   key={post.id}
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  viewport={{ once: true }}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 + index * 0.1 }}
                 >
                   <Link href={`/blog/${post.slug}`}>
-                    <Card hover padding="none" className="overflow-hidden h-full flex flex-col">
+                    <Card hover padding="none" className="overflow-hidden group">
                       {post.featuredImage && (
-                        <div className="relative overflow-hidden">
+                        <div className="aspect-video overflow-hidden">
                           <img
                             src={post.featuredImage}
                             alt={post.title}
-                            className="w-full h-48 object-cover transition-transform duration-300 hover:scale-105"
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                           />
-                          <div className="absolute top-4 left-4">
-                            <span className="px-3 py-1 bg-[var(--primary)] text-white text-xs font-medium rounded-full">
-                              {post.category}
-                            </span>
-                          </div>
                         </div>
                       )}
-                      
-                      <div className="p-6 flex-1 flex flex-col">
-                        <h3 className="text-xl font-semibold text-[var(--foreground)] mb-3 line-clamp-2">
-                          {post.title}
-                        </h3>
-                        
-                        <p className="text-[var(--secondary)] mb-4 line-clamp-3 flex-1">
-                          {post.excerpt}
-                        </p>
-                        
-                        <div className="flex items-center justify-between text-sm text-[var(--secondary)] mb-4">
-                          <div className="flex items-center gap-2">
-                            <div className="flex items-center gap-1">
-                              <Calendar className="w-4 h-4" />
-                              {formatDate(post.publishedAt)}
-                            </div>
-                            <span>•</span>
-                            <div className="flex items-center gap-1">
-                              <Clock className="w-4 h-4" />
-                              {post.readTime} min
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Eye className="w-4 h-4" />
-                            {post.views}
+                      <div className="p-6">
+                        <div className="flex items-center gap-3 mb-3">
+                          <span className="px-2 py-1 text-xs font-medium bg-[var(--primary)]/10 text-[var(--primary)] rounded">
+                            {post.category}
+                          </span>
+                          <div className="flex items-center gap-1 text-sm text-[var(--secondary)]">
+                            <Clock size={14} />
+                            {post.readTime} min read
                           </div>
                         </div>
-                        
+                        <h3 className="text-xl font-bold text-[var(--foreground)] mb-3 group-hover:text-[var(--primary)] transition-colors">
+                          {post.title}
+                        </h3>
+                        <p className="text-[var(--secondary)] mb-4 line-clamp-2">
+                          {post.excerpt}
+                        </p>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             {post.author.avatar ? (
                               <img
                                 src={post.author.avatar}
                                 alt={post.author.username}
-                                className="w-8 h-8 rounded-full object-cover"
+                                className="w-6 h-6 rounded-full"
                               />
                             ) : (
-                              <div className="w-8 h-8 rounded-full bg-[var(--primary)] flex items-center justify-center">
-                                <User className="w-4 h-4 text-white" />
+                              <div className="w-6 h-6 rounded-full bg-[var(--primary)]/20 flex items-center justify-center">
+                                <User size={12} className="text-[var(--primary)]" />
                               </div>
                             )}
-                            <span className="text-sm font-medium text-[var(--foreground)]">
+                            <span className="text-sm text-[var(--secondary)]">
                               {post.author.username}
                             </span>
                           </div>
-                          
-                          <ArrowRight className="w-4 h-4 text-[var(--primary)]" />
+                          <div className="flex items-center gap-1 text-sm text-[var(--secondary)]">
+                            <Eye size={14} />
+                            {post.views}
+                          </div>
                         </div>
                       </div>
                     </Card>
                   </Link>
                 </motion.div>
-              ))}
-            </div>
-          )}
+              ))
+            ) : (
+              <div className="col-span-full text-center py-12">
+                <div className="text-6xl mb-4">📝</div>
+                <h3 className="text-xl font-semibold text-[var(--foreground)] mb-2">
+                  No Featured Posts Yet
+                </h3>
+                <p className="text-[var(--secondary)]">
+                  Check back soon for featured content from our writers.
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       </section>
 
-      {/* Recent Posts */}
+      {/* Recent Posts Section */}
       <section className="py-16 bg-[var(--surface)]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="container mx-auto px-6">
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            viewport={{ once: true }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
             className="flex items-center justify-between mb-12"
           >
             <div>
-              <div className="flex items-center gap-2 mb-2">
-                <TrendingUp className="w-6 h-6 text-[var(--primary)]" />
-                <h2 className="text-3xl font-bold text-[var(--foreground)]">
-                  Latest Articles
-                </h2>
-              </div>
-              <p className="text-lg text-[var(--secondary)]">
-                Stay up to date with our newest content and insights.
+              <h2 className="text-3xl font-bold text-[var(--foreground)] mb-2">
+                Recent Articles
+              </h2>
+              <p className="text-[var(--secondary)]">
+                Stay up to date with the latest posts from our community.
               </p>
             </div>
-            
             <Link href="/blog">
               <Button variant="outline" icon={ArrowRight} iconPosition="right">
-                View All Posts
+                View All
               </Button>
             </Link>
           </motion.div>
-          
-          {isLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <Card key={i} padding="none" className="overflow-hidden">
-                  <div className="w-full h-32 skeleton"></div>
-                  <div className="p-4">
-                    <LoadingSkeleton lines={3} />
-                  </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {isLoading ? (
+              Array.from({ length: 6 }).map((_, index) => (
+                <Card key={index} padding="lg">
+                  <LoadingSkeleton lines={3} />
                 </Card>
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {recentPosts.map((post, index) => (
+              ))
+            ) : recentPosts.length > 0 ? (
+              recentPosts.map((post, index) => (
                 <motion.div
                   key={post.id}
                   initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  viewport={{ once: true }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.5 + index * 0.1 }}
                 >
                   <Link href={`/blog/${post.slug}`}>
-                    <Card hover padding="none" className="overflow-hidden h-full">
-                      {post.featuredImage && (
-                        <div className="relative overflow-hidden">
-                          <img
-                            src={post.featuredImage}
-                            alt={post.title}
-                            className="w-full h-32 object-cover transition-transform duration-300 hover:scale-105"
-                          />
-                          <div className="absolute top-2 left-2">
-                            <span className="px-2 py-1 bg-[var(--primary)] text-white text-xs font-medium rounded">
-                              {post.category}
-                            </span>
-                          </div>
+                    <Card hover padding="lg" className="group h-full">
+                      <div className="flex items-start gap-3 mb-3">
+                        <span className="px-2 py-1 text-xs font-medium bg-[var(--primary)]/10 text-[var(--primary)] rounded">
+                          {post.category}
+                        </span>
+                        <div className="flex items-center gap-1 text-sm text-[var(--secondary)]">
+                          <Calendar size={14} />
+                          {formatDistanceToNow(new Date(post.publishedAt), { addSuffix: true })}
                         </div>
-                      )}
-                      
-                      <div className="p-4">
-                        <h3 className="font-semibold text-[var(--foreground)] mb-2 line-clamp-2">
-                          {post.title}
-                        </h3>
-                        
-                        <p className="text-sm text-[var(--secondary)] mb-3 line-clamp-2">
-                          {post.excerpt}
-                        </p>
-                        
-                        <div className="flex items-center justify-between text-xs text-[var(--secondary)]">
-                          <div className="flex items-center gap-2">
-                            <Calendar className="w-3 h-3" />
-                            {formatDate(post.publishedAt)}
+                      </div>
+                      <h3 className="text-lg font-semibold text-[var(--foreground)] mb-2 group-hover:text-[var(--primary)] transition-colors line-clamp-2">
+                        {post.title}
+                      </h3>
+                      <p className="text-[var(--secondary)] text-sm mb-4 line-clamp-2">
+                        {post.excerpt}
+                      </p>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="w-5 h-5 rounded-full bg-[var(--primary)]/20 flex items-center justify-center">
+                            <User size={10} className="text-[var(--primary)]" />
+                          </div>
+                          <span className="text-xs text-[var(--secondary)]">
+                            {post.author.username}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 text-xs text-[var(--secondary)]">
+                          <div className="flex items-center gap-1">
+                            <Clock size={12} />
+                            {post.readTime}m
                           </div>
                           <div className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {post.readTime} min read
+                            <Eye size={12} />
+                            {post.views}
                           </div>
                         </div>
                       </div>
                     </Card>
                   </Link>
                 </motion.div>
-              ))}
-            </div>
-          )}
+              ))
+            ) : (
+              <div className="col-span-full text-center py-12">
+                <div className="text-6xl mb-4">📄</div>
+                <h3 className="text-xl font-semibold text-[var(--foreground)] mb-2">
+                  No Recent Posts
+                </h3>
+                <p className="text-[var(--secondary)]">
+                  New articles will appear here as they are published.
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-16">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      {/* Newsletter Section */}
+      <section className="py-16 bg-gradient-to-r from-[var(--primary)]/10 to-[var(--accent)]/10">
+        <div className="container mx-auto px-6">
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            viewport={{ once: true }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.8 }}
+            className="text-center max-w-2xl mx-auto"
           >
+            <div className="text-4xl mb-4">📬</div>
             <h2 className="text-3xl font-bold text-[var(--foreground)] mb-4">
-              Stay Connected
+              Stay Updated
             </h2>
-            <p className="text-lg text-[var(--secondary)] mb-8">
-              Subscribe to our newsletter for the latest updates and insights delivered directly to your inbox.
+            <p className="text-[var(--secondary)] mb-8">
+              Subscribe to our newsletter and never miss the latest articles and insights.
             </p>
-            
-            <div className="flex flex-col sm:flex-row gap-4 justify-center max-w-md mx-auto">
+            <div className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto">
               <input
                 type="email"
                 placeholder="Enter your email"
                 className="flex-1 px-4 py-3 border border-[var(--border)] rounded-lg bg-[var(--background)] text-[var(--foreground)] placeholder-[var(--secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)] focus:border-transparent"
               />
-              <Button size="lg">Subscribe</Button>
+              <Button className="whitespace-nowrap">
+                Subscribe
+              </Button>
             </div>
           </motion.div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="bg-[var(--surface)] border-t border-[var(--border)] py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <footer className="py-12 bg-[var(--surface)] border-t border-[var(--border)]">
+        <div className="container mx-auto px-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            {/* Brand */}
             <div className="md:col-span-2">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--primary)] to-[var(--accent)] flex items-center justify-center">
-                  <span className="text-white font-bold text-sm">CMS</span>
-                </div>
-                <span className="text-lg font-semibold text-[var(--foreground)]">Content Hub</span>
-              </div>
-              <p className="text-[var(--secondary)] mb-4 max-w-md">
-                Your source for insights, tutorials, and inspiration in technology, design, and innovation.
+              <h3 className="text-xl font-bold text-[var(--foreground)] mb-4">
+                Content Hub
+              </h3>
+              <p className="text-[var(--secondary)] mb-4">
+                A platform for sharing knowledge, insights, and stories from our community of writers and creators.
               </p>
             </div>
-
-            {/* Quick Links */}
+            
             <div>
-              <h3 className="font-semibold text-[var(--foreground)] mb-4">Quick Links</h3>
+              <h4 className="font-semibold text-[var(--foreground)] mb-4">
+                Quick Links
+              </h4>
               <div className="space-y-2">
                 <Link href="/blog" className="block text-[var(--secondary)] hover:text-[var(--primary)] transition-colors">
-                  Blog
+                  All Articles
                 </Link>
                 <Link href="/pages/about" className="block text-[var(--secondary)] hover:text-[var(--primary)] transition-colors">
-                  About
+                  About Us
                 </Link>
                 <Link href="/pages/contact" className="block text-[var(--secondary)] hover:text-[var(--primary)] transition-colors">
                   Contact
                 </Link>
-                <Link href="/pages/privacy" className="block text-[var(--secondary)] hover:text-[var(--primary)] transition-colors">
-                  Privacy Policy
-                </Link>
               </div>
             </div>
-
-            {/* Categories */}
+            
             <div>
-              <h3 className="font-semibold text-[var(--foreground)] mb-4">Categories</h3>
+              <h4 className="font-semibold text-[var(--foreground)] mb-4">
+                Categories
+              </h4>
               <div className="space-y-2">
                 <Link href="/blog?category=technology" className="block text-[var(--secondary)] hover:text-[var(--primary)] transition-colors">
                   Technology

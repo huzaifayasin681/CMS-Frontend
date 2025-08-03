@@ -87,7 +87,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
           
           {/* Center - Navigation or Search */}
-          <div className="hidden md:flex flex-1 justify-center mx-8">
+          <div className="hidden md:flex flex-1 justify-center mx-4 lg:mx-8 min-w-0">
             {showMenuButton ? (
               // Show search in dashboard
               <div className="relative w-full max-w-md">
@@ -100,12 +100,14 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
             ) : (
               // Show public navigation on public pages
-              <PublicNav />
+              <div className="flex-1 overflow-hidden">
+                <PublicNav className="flex justify-center" />
+              </div>
             )}
           </div>
           
           {/* Right side */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 lg:gap-2 flex-shrink-0">
             {/* Theme toggle */}
             <Button
               variant="ghost"

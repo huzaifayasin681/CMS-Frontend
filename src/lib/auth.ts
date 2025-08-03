@@ -7,7 +7,7 @@ interface User {
   id: string;
   username: string;
   email: string;
-  role: 'admin' | 'editor' | 'viewer';
+  role: 'superadmin' | 'admin' | 'editor' | 'viewer';
   avatar?: string;
   firstName?: string;
   lastName?: string;
@@ -15,6 +15,7 @@ interface User {
   website?: string;
   location?: string;
   phone?: string;
+  emailVerified: boolean;
   lastLogin?: string;
   createdAt: string;
 }
@@ -24,12 +25,19 @@ interface AuthState {
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  emailVerificationPending: boolean;
   login: (credentials: { login: string; password: string }) => Promise<void>;
   register: (userData: any) => Promise<void>;
   logout: () => void;
   checkAuth: () => Promise<void>;
   updateProfile: (data: any) => Promise<void>;
+  uploadAvatar: (file: File) => Promise<any>;
   changePassword: (data: any) => Promise<void>;
+  // Email verification methods
+  verifyEmail: (token: string) => Promise<void>;
+  resendVerification: (email: string) => Promise<void>;
+  forgotPassword: (email: string) => Promise<void>;
+  resetPassword: (token: string, newPassword: string) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -39,6 +47,7 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       isAuthenticated: false,
       isLoading: false,
+      emailVerificationPending: false,
 
       login: async (credentials) => {
         set({ isLoading: true });
@@ -54,9 +63,16 @@ export const useAuthStore = create<AuthState>()(
             token,
             isAuthenticated: true,
             isLoading: false,
+            emailVerificationPending: false,
           });
-        } catch (error) {
+        } catch (error: any) {
           set({ isLoading: false });
+          
+          // Check if error is due to unverified email
+          if (error.response?.data?.emailVerified === false) {
+            set({ emailVerificationPending: true });
+          }
+          
           throw error;
         }
       },
@@ -65,16 +81,15 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true });
         try {
           const response = await authAPI.register(userData);
-          const { token, user } = response.data;
+          const { user } = response.data;
           
-          // Store token in cookie
-          Cookies.set('cms_token', token, { expires: 7 });
-          
+          // No token returned - email verification required
           set({
             user,
-            token,
-            isAuthenticated: true,
+            token: null,
+            isAuthenticated: false,
             isLoading: false,
+            emailVerificationPending: true,
           });
         } catch (error) {
           set({ isLoading: false });
@@ -88,6 +103,7 @@ export const useAuthStore = create<AuthState>()(
           user: null,
           token: null,
           isAuthenticated: false,
+          emailVerificationPending: false,
         });
       },
 
@@ -125,10 +141,68 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
+      uploadAvatar: async (file: File) => {
+        try {
+          const response = await authAPI.uploadAvatar(file);
+          // Update user with new avatar URL
+          set({ user: response.data.user });
+          return response.data.media;
+        } catch (error) {
+          throw error;
+        }
+      },
+
       changePassword: async (data) => {
         try {
           await authAPI.changePassword(data);
         } catch (error) {
+          throw error;
+        }
+      },
+
+      verifyEmail: async (token: string) => {
+        set({ isLoading: true });
+        try {
+          await authAPI.verifyEmail(token);
+          set({ 
+            isLoading: false,
+            emailVerificationPending: false
+          });
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
+      },
+
+      resendVerification: async (email: string) => {
+        set({ isLoading: true });
+        try {
+          await authAPI.resendVerification({ email });
+          set({ isLoading: false });
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
+      },
+
+      forgotPassword: async (email: string) => {
+        set({ isLoading: true });
+        try {
+          await authAPI.forgotPassword({ email });
+          set({ isLoading: false });
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
+      },
+
+      resetPassword: async (token: string, newPassword: string) => {
+        set({ isLoading: true });
+        try {
+          await authAPI.resetPassword({ token, newPassword });
+          set({ isLoading: false });
+        } catch (error) {
+          set({ isLoading: false });
           throw error;
         }
       },
@@ -137,7 +211,8 @@ export const useAuthStore = create<AuthState>()(
       name: 'cms-auth-storage',
       partialize: (state) => ({ 
         user: state.user, 
-        isAuthenticated: state.isAuthenticated 
+        isAuthenticated: state.isAuthenticated,
+        emailVerificationPending: state.emailVerificationPending
       }),
     }
   )
@@ -148,13 +223,16 @@ export const usePermissions = () => {
   const { user } = useAuthStore();
   
   return {
-    isAdmin: user?.role === 'admin',
-    isEditor: user?.role === 'editor' || user?.role === 'admin',
+    isSuperAdmin: user?.role === 'superadmin',
+    isAdmin: user?.role === 'admin' || user?.role === 'superadmin',
+    isEditor: user?.role === 'editor' || user?.role === 'admin' || user?.role === 'superadmin',
     isViewer: !!user,
-    canCreate: user?.role === 'editor' || user?.role === 'admin',
-    canEdit: user?.role === 'editor' || user?.role === 'admin',
-    canDelete: user?.role === 'admin',
-    canManageUsers: user?.role === 'admin',
-    canManageMedia: user?.role === 'editor' || user?.role === 'admin',
+    canCreate: user?.role === 'editor' || user?.role === 'admin' || user?.role === 'superadmin',
+    canEdit: user?.role === 'editor' || user?.role === 'admin' || user?.role === 'superadmin',
+    canDelete: user?.role === 'editor' || user?.role === 'admin' || user?.role === 'superadmin',
+    canManageUsers: user?.role === 'admin' || user?.role === 'superadmin',
+    canManageMedia: user?.role === 'editor' || user?.role === 'admin' || user?.role === 'superadmin',
+    canManageSettings: user?.role === 'admin' || user?.role === 'superadmin',
+    canViewAnalytics: user?.role === 'editor' || user?.role === 'admin' || user?.role === 'superadmin',
   };
 };
