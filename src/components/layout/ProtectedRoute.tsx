@@ -10,7 +10,7 @@ interface ProtectedRouteProps {
   requiredRole?: 'superadmin' | 'admin' | 'editor' | 'viewer';
 }
 
-export const ProtectedRoute = ({ 
+const ProtectedRoute = ({ 
   children, 
   requiredRole = 'viewer' 
 }: ProtectedRouteProps): JSX.Element => {
@@ -75,3 +75,5 @@ export const ProtectedRoute = ({
 
   return <>{children}</>;
 };
+
+export default ProtectedRoute;

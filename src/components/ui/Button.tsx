@@ -37,9 +37,9 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({
   };
   
   const sizes = {
-    sm: 'px-4 py-2 text-sm gap-2 min-h-[36px]',
-    md: 'px-6 py-3 text-sm gap-2.5 min-h-[44px]',
-    lg: 'px-8 py-4 text-base gap-3 min-h-[52px]'
+    sm: 'px-3 sm:px-4 py-2 text-sm gap-1.5 sm:gap-2 min-h-[36px] text-xs sm:text-sm',
+    md: 'px-4 sm:px-6 py-2.5 sm:py-3 text-sm gap-2 sm:gap-2.5 min-h-[40px] sm:min-h-[44px]',
+    lg: 'px-6 sm:px-8 py-3 sm:py-4 text-sm sm:text-base gap-2.5 sm:gap-3 min-h-[48px] sm:min-h-[52px]'
   };
   
   const isDisabled = disabled || loading;

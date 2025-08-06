@@ -16,6 +16,8 @@ import { Button } from '@/components/ui/Button';
 import { ThemeSwitcher } from '@/components/ui/ThemeSwitcher';
 import { showToast } from '@/components/ui/Toast';
 import { PublicNav } from '@/components/layout/PublicNav';
+import NotificationBell from '@/components/notifications/NotificationBell';
+import { TutorialSettings } from '@/components/tutorial/TutorialSettings';
 
 interface HeaderProps {
   onMenuToggle?: () => void;
@@ -68,7 +70,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
           
           {/* Center - Navigation or Search */}
-          <div className="hidden md:flex flex-1 justify-center mx-4 lg:mx-8 min-w-0">
+          <div className="hidden lg:flex flex-1 justify-center mx-4 lg:mx-8 min-w-0">
             {showMenuButton ? (
               // Show search in dashboard
               <div className="relative w-full max-w-md">
@@ -88,28 +90,32 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
           
           {/* Right side */}
-          <div className="flex items-center gap-1 lg:gap-2 flex-shrink-0">
+          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
             {/* Theme toggle */}
-            <ThemeSwitcher 
-              variant="dropdown" 
-              size="sm" 
-              className="text-[var(--secondary)] hover:text-[var(--primary)]"
-            />
+            <div className="hidden sm:block">
+              <ThemeSwitcher 
+                variant="dropdown" 
+                size="sm" 
+                className="text-[var(--secondary)] hover:text-[var(--primary)]"
+              />
+            </div>
             
             {isAuthenticated ? (
               <>
+                {/* Tutorial Settings - Hidden on mobile */}
+                {showMenuButton && (
+                  <div className="hidden md:block">
+                    <TutorialSettings />
+                  </div>
+                )}
+                
                 {/* Notifications */}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  icon={Bell}
-                  className="text-[var(--secondary)] hover:text-[var(--primary)] relative"
-                >
-                  <div className="absolute -top-1 -right-1 w-2 h-2 bg-[var(--danger)] rounded-full"></div>
-                </Button>
+                <div data-tutorial="notifications">
+                  <NotificationBell />
+                </div>
                 
                 {/* User menu */}
-                <div className="relative">
+                <div className="relative" data-tutorial="user-menu">
                   <button
                     onClick={() => setShowUserMenu(!showUserMenu)}
                     className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-[var(--surface)] transition-colors"

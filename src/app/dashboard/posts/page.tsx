@@ -171,21 +171,23 @@ export default function PostsPage() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex items-center justify-between"
+        className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
       >
-        <div>
-          <h1 className="text-3xl font-bold text-[var(--foreground)]">Posts</h1>
-          <p className="text-[var(--secondary)] mt-1">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-2xl sm:text-3xl font-bold text-[var(--foreground)]">Posts</h1>
+          <p className="text-[var(--secondary)] mt-1 text-sm sm:text-base">
             Manage your blog posts and articles
           </p>
         </div>
 
         {permissions.canCreate && (
-          <Link href="/dashboard/posts/new">
-            <Button icon={Plus}>
-              New Post
-            </Button>
-          </Link>
+          <div className="flex-shrink-0">
+            <Link href="/dashboard/posts/new">
+              <Button icon={Plus} className="w-full sm:w-auto">
+                <span className="sm:inline">New Post</span>
+              </Button>
+            </Link>
+          </div>
         )}
       </motion.div>
 
@@ -196,35 +198,39 @@ export default function PostsPage() {
         transition={{ delay: 0.1 }}
       >
         <Card padding="lg">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <Input
-                icon={Search}
-                placeholder="Search posts..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-            
-            <div className="flex gap-2">
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value as any)}
-                className="px-3 py-2 border border-[var(--border)] rounded-lg bg-[var(--surface)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
-              >
-                <option value="all">All Status</option>
-                <option value="published">Published</option>
-                <option value="draft">Draft</option>
-                <option value="archived">Archived</option>
-              </select>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex-1">
+                <Input
+                  icon={Search}
+                  placeholder="Search posts..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              
+              <div className="flex flex-col xs:flex-row gap-2 sm:flex-shrink-0">
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value as any)}
+                  className="flex-1 xs:flex-initial px-3 py-2 border border-[var(--border)] rounded-lg bg-[var(--surface)] text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)] text-sm"
+                >
+                  <option value="all">All Status</option>
+                  <option value="published">Published</option>
+                  <option value="draft">Draft</option>
+                  <option value="archived">Archived</option>
+                </select>
 
-              <Button
-                variant="outline"
-                icon={Filter}
-                onClick={() => setShowFilters(!showFilters)}
-              >
-                Filters
-              </Button>
+                <Button
+                  variant="outline"
+                  icon={Filter}
+                  onClick={() => setShowFilters(!showFilters)}
+                  size="sm"
+                  className="flex-1 xs:flex-initial justify-center"
+                >
+                  <span className="sm:inline">Filters</span>
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -314,63 +320,77 @@ export default function PostsPage() {
                   )}
                   
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-[var(--foreground)] mb-1 line-clamp-1">
-                          {post.title}
-                        </h3>
-                        <p className="text-[var(--secondary)] text-sm line-clamp-2">
-                          {post.excerpt}
-                        </p>
-                      </div>
-                      
-                      <div className="flex items-center gap-2 ml-4">
-                        {getStatusBadge(post.status)}
+                    <div className="flex flex-col gap-2 mb-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-base sm:text-lg font-semibold text-[var(--foreground)] mb-1 line-clamp-1">
+                            {post.title}
+                          </h3>
+                          <p className="text-[var(--secondary)] text-sm line-clamp-2">
+                            {post.excerpt}
+                          </p>
+                        </div>
                         
-                        {permissions.canEdit && (
-                          <div className="flex items-center gap-1">
-                            <Link href={`/dashboard/posts/${post.id}/edit`}>
-                              <Button variant="ghost" size="sm" icon={Edit} />
-                            </Link>
-                            {permissions.canDelete && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                icon={Trash2}
-                                onClick={() => handleDeletePost(post.id)}
-                              />
-                            )}
-                            <Button variant="ghost" size="sm" icon={MoreVertical} />
-                          </div>
-                        )}
+                        <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 flex-shrink-0">
+                          {getStatusBadge(post.status)}
+                          
+                          {permissions.canEdit && (
+                            <div className="flex items-center gap-1">
+                              <Link href={`/dashboard/posts/${post.id}/edit`}>
+                                <Button variant="ghost" size="sm" icon={Edit} className="p-2" title="Edit post" />
+                              </Link>
+                              {permissions.canDelete && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  icon={Trash2}
+                                  className="p-2"
+                                  onClick={() => handleDeletePost(post.id)}
+                                  title="Delete post"
+                                />
+                              )}
+                              <Button variant="ghost" size="sm" icon={MoreVertical} className="p-2" title="More options" />
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                     
-                    <div className="flex items-center gap-4 text-sm text-[var(--secondary)]">
-                      <div className="flex items-center gap-1">
-                        <User size={14} />
-                        {post.author.firstName && post.author.lastName
-                          ? `${post.author.firstName} ${post.author.lastName}`
-                          : post.author.username}
+                    <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-sm text-[var(--secondary)]">
+                      <div className="flex items-center gap-1 min-w-0">
+                        <User size={12} className="flex-shrink-0" />
+                        <span className="truncate">
+                          {post.author.firstName && post.author.lastName
+                            ? `${post.author.firstName} ${post.author.lastName}`
+                            : post.author.username}
+                        </span>
                       </div>
                       
-                      <div className="flex items-center gap-1">
-                        <Calendar size={14} />
-                        {post.status === 'published' && post.publishedAt
-                          ? formatDate(post.publishedAt)
-                          : formatDate(post.updatedAt)
-                        }
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <Calendar size={12} />
+                        <span className="hidden xs:inline">
+                          {post.status === 'published' && post.publishedAt
+                            ? formatDate(post.publishedAt)
+                            : formatDate(post.updatedAt)
+                          }
+                        </span>
+                        <span className="xs:hidden">
+                          {post.status === 'published' && post.publishedAt
+                            ? new Date(post.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                            : new Date(post.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                          }
+                        </span>
                       </div>
                       
                       {post.status === 'published' && (
                         <>
                           <div className="flex items-center gap-1">
-                            <Eye size={14} />
+                            <Eye size={12} />
                             {post.views.toLocaleString()}
                           </div>
                           
                           <div className="flex items-center gap-1">
-                            <Heart size={14} />
+                            <Heart size={12} />
                             {post.likes}
                           </div>
                         </>
@@ -378,8 +398,8 @@ export default function PostsPage() {
                       
                       {post.status === 'draft' && (
                         <div className="flex items-center gap-1">
-                          <Clock size={14} />
-                          Draft
+                          <Clock size={12} />
+                          <span>Draft</span>
                         </div>
                       )}
                     </div>

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { showToast } from '@/components/ui/Toast';
-import { RichTextEditor } from '@/components/ui/RichTextEditor';
+import { MarkdownRichEditor } from '@/components/ui/MarkdownRichEditor';
 import { ContentTemplates } from '@/components/ui/ContentTemplates';
 import { ContentPreview } from '@/components/ui/ContentPreview';
 import { ImageUpload } from '@/components/ui/ImageUpload';
@@ -321,13 +321,18 @@ export const PostForm: React.FC<PostFormProps> = ({ postId, onSave, onCancel }) 
                 <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
                   Content
                 </label>
-                <RichTextEditor
+                <MarkdownRichEditor
                   content={formData.content}
                   onChange={(content) => handleInputChange('content', content)}
                   placeholder="Start writing your post content..."
                   showCharacterCount={true}
                   maxCharacters={10000}
                   className="min-h-[400px]"
+                  mode="markdown"
+                  onImageSelect={(url) => {
+                    // Handle image insertion in markdown format
+                    console.log('Image inserted:', url);
+                  }}
                 />
               </div>
             </div>

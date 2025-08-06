@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
+import ProtectedRoute from '@/components/layout/ProtectedRoute';
 import { PageForm } from '@/components/forms/PageForm';
 import Link from 'next/link';
 

@@ -451,6 +451,32 @@ export const settingsAPI = createEnhancedAPI({
   uploadLogo: ['/settings']
 });
 
+// Enhanced Notifications API with cache invalidation
+export const notificationsAPI = createEnhancedAPI({
+  getNotifications: (params?: any) => api.get('/notifications', { params }),
+  getUnreadCount: () => api.get('/notifications/unread-count'),
+  getStats: () => api.get('/notifications/stats'),
+  markAsRead: (id: string) => api.patch(`/notifications/${id}/read`),
+  markAllAsRead: () => api.patch('/notifications/mark-all-read'),
+  deleteNotification: (id: string) => api.delete(`/notifications/${id}`),
+  
+  // Admin functions for creating notifications
+  createNotification: (data: any) => api.post('/notifications', data),
+  createBulkNotifications: (notifications: any[]) => api.post('/notifications/bulk', { notifications }),
+  
+  // System management functions
+  getSystemStats: () => api.get('/notifications/system/stats'),
+  cleanupExpiredNotifications: () => api.delete('/notifications/system/cleanup'),
+}, {
+  // Cache invalidation mappings
+  createNotification: ['/notifications', '/notifications/unread-count', '/notifications/stats'],
+  createBulkNotifications: ['/notifications', '/notifications/unread-count', '/notifications/stats'],
+  markAsRead: ['/notifications', '/notifications/unread-count', '/notifications/stats'],
+  markAllAsRead: ['/notifications', '/notifications/unread-count', '/notifications/stats'],
+  deleteNotification: ['/notifications', '/notifications/unread-count', '/notifications/stats'],
+  cleanupExpiredNotifications: ['/notifications', '/notifications/stats', '/notifications/system/stats']
+});
+
 // Network status monitoring
 export const networkMonitor = {
   isOnline: () => typeof navigator !== 'undefined' ? navigator.onLine : true,

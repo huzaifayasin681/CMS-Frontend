@@ -64,16 +64,26 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ postId }) => {
       const transformedComments = (Array.isArray(commentsData) ? commentsData : []).map((comment: any) => ({
         ...comment,
         id: comment._id || comment.id,
-        author: {
+        author: comment.author ? {
           ...comment.author,
           id: comment.author._id || comment.author.id
+        } : {
+          _id: 'unknown',
+          id: 'unknown',
+          username: 'Anonymous',
+          avatar: null
         },
         replies: comment.replies?.map((reply: any) => ({
           ...reply,
           id: reply._id || reply.id,
-          author: {
+          author: reply.author ? {
             ...reply.author,
             id: reply.author._id || reply.author.id
+          } : {
+            _id: 'unknown',
+            id: 'unknown',
+            username: 'Anonymous',
+            avatar: null
           }
         })) || []
       }));

@@ -12,6 +12,7 @@ import { showToast } from '@/components/ui/Toast';
 import { pagesAPI } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { useAutoSave } from '@/hooks/useAutoSave';
+import { MarkdownRichEditor } from '@/components/ui/MarkdownRichEditor';
 
 interface PageFormData {
   title: string;
@@ -760,21 +761,13 @@ Use short paragraphs and avoid complex layouts for the best minimal experience.`
                   <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
                     Content
                   </label>
-                  {showPreview ? (
-                    <div 
-                      className="min-h-[300px] p-4 border border-[var(--border)] rounded-lg bg-[var(--surface)] prose max-w-none"
-                      dangerouslySetInnerHTML={{ __html: formData.content }}
-                    />
-                  ) : (
-                    <textarea
-                      value={formData.content}
-                      onChange={(e) => handleInputChange('content', e.target.value)}
-                      placeholder={getContentPlaceholder()}
-                      rows={getContentRows()}
-                      className="w-full px-3 py-2 border border-[var(--border)] rounded-lg bg-[var(--background)] text-[var(--foreground)] placeholder-[var(--secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--ring)] focus:border-transparent resize-vertical font-mono text-sm"
-                      required
-                    />
-                  )}
+                  <MarkdownRichEditor
+                    content={formData.content}
+                    onChange={(content) => handleInputChange('content', content)}
+                    placeholder={getContentPlaceholder()}
+                    onImageUpload={() => {}}
+                    markdownMode={true}
+                  />
                   {getContentHint() && (
                     <p className="text-xs text-[var(--secondary)] mt-1">
                       {getContentHint()}

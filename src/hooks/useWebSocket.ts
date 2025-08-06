@@ -9,6 +9,8 @@ interface WebSocketStatus {
 
 interface UseWebSocketReturn {
   status: WebSocketStatus;
+  socket: any; // Exposed socket for direct access
+  isConnected: boolean; // Convenience property
   ping: () => void;
   disconnect: () => void;
   reconnect: () => void;
@@ -119,6 +121,8 @@ export const useWebSocket = (): UseWebSocketReturn => {
 
   return {
     status,
+    socket: wsClientRef.current?.getSocket?.() || null,
+    isConnected: status.isConnected,
     ping,
     disconnect,
     reconnect,

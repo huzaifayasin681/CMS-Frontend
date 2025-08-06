@@ -216,6 +216,10 @@ class WebSocketClient {
       reconnectAttempts: this.reconnectAttempts
     };
   }
+
+  public getSocket() {
+    return this.socket;
+  }
 }
 
 // Create singleton instance
