@@ -765,8 +765,7 @@ Use short paragraphs and avoid complex layouts for the best minimal experience.`
                     content={formData.content}
                     onChange={(content) => handleInputChange('content', content)}
                     placeholder={getContentPlaceholder()}
-                    onImageUpload={() => {}}
-                    markdownMode={true}
+                    onImageSelect={(url) => console.log('Image selected:', url)}
                   />
                   {getContentHint() && (
                     <p className="text-xs text-[var(--secondary)] mt-1">

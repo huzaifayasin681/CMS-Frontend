@@ -52,7 +52,9 @@ const MenuButton: React.FC<{
         : 'bg-[var(--surface)] hover:bg-[var(--border)] text-[var(--foreground)] hover:shadow-sm'
     } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:scale-[1.02]'}`}
   >
-    <Icon size={16} className="flex-shrink-0" />
+    <div className="flex-shrink-0">
+      <Icon size={16} />
+    </div>
     {label && <span className="hidden sm:inline">{label}</span>}
   </button>
 );
@@ -226,8 +228,8 @@ const htmlToMarkdown = (html: string): string => {
   markdown = markdown.replace(/<blockquote[^>]*>(.*?)<\/blockquote>/gim, '> $1\n');
 
   // Lists
-  markdown = markdown.replace(/<ul[^>]*>(.*?)<\/ul>/gims, '$1');
-  markdown = markdown.replace(/<ol[^>]*>(.*?)<\/ol>/gims, '$1');
+  markdown = markdown.replace(/<ul[^>]*>(.*?)<\/ul>/gim, '$1');
+  markdown = markdown.replace(/<ol[^>]*>(.*?)<\/ol>/gim, '$1');
   markdown = markdown.replace(/<li[^>]*>(.*?)<\/li>/gim, '- $1\n');
 
   // Line breaks and paragraphs
